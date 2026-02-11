@@ -1,0 +1,168 @@
+-- Orion Dashboard v2 - Supabase Schema
+-- Run this in the Supabase SQL Editor to set up the database
+
+-- ============================================
+-- KANBAN SYSTEM
+-- ============================================
+
+-- Columns table
+CREATE TABLE IF NOT EXISTS kanban_columns (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Cards table
+CREATE TABLE IF NOT EXISTS kanban_cards (
+  id TEXT PRIMARY KEY,
+  column_id TEXT REFERENCES kanban_columns(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  owner TEXT,
+  priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  tags TEXT[] DEFAULT '{}',
+  notes TEXT,
+  acknowledged BOOLEAN DEFAULT FALSE,
+  position INTEGER NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for faster column lookups
+CREATE INDEX IF NOT EXISTS idx_cards_column ON kanban_cards(column_id);
+
+-- ============================================
+-- NOTES SYSTEM
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS notes (
+  id TEXT PRIMARY KEY,
+  text TEXT NOT NULL,
+  processed BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================
+-- REPORTS SYSTEM
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  category TEXT,
+  content TEXT,
+  date DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index for date-based queries
+CREATE INDEX IF NOT EXISTS idx_reports_date ON reports(date DESC);
+
+-- ============================================
+-- STATUS SYSTEM (for dashboard state)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS dashboard_status (
+  id TEXT PRIMARY KEY DEFAULT 'main',
+  state TEXT DEFAULT 'idle',
+  state_description TEXT,
+  current_task TEXT,
+  state_start_time TIMESTAMPTZ DEFAULT NOW(),
+  activity_log JSONB DEFAULT '[]',
+  sub_agents JSONB DEFAULT '[]',
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Insert default status row
+INSERT INTO dashboard_status (id, state, state_description)
+VALUES ('main', 'idle', 'Waiting for input')
+ON CONFLICT (id) DO NOTHING;
+
+-- ============================================
+-- ROW LEVEL SECURITY (RLS)
+-- ============================================
+
+-- Enable RLS on all tables
+ALTER TABLE kanban_columns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kanban_cards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dashboard_status ENABLE ROW LEVEL SECURITY;
+
+-- Policies: Allow authenticated users full access
+-- (We'll use simple auth - if you're logged in, you can access everything)
+
+CREATE POLICY "Authenticated users can read columns" ON kanban_columns
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can modify columns" ON kanban_columns
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can read cards" ON kanban_cards
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can modify cards" ON kanban_cards
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can read notes" ON notes
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can modify notes" ON notes
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can read reports" ON reports
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can modify reports" ON reports
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can read status" ON dashboard_status
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can modify status" ON dashboard_status
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- ============================================
+-- FUNCTIONS
+-- ============================================
+
+-- Auto-update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply trigger to cards
+CREATE TRIGGER update_cards_updated_at
+  BEFORE UPDATE ON kanban_cards
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Apply trigger to reports
+CREATE TRIGGER update_reports_updated_at
+  BEFORE UPDATE ON reports
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- Apply trigger to status
+CREATE TRIGGER update_status_updated_at
+  BEFORE UPDATE ON dashboard_status
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================
+-- SEED DATA: Default Kanban Columns
+-- ============================================
+
+INSERT INTO kanban_columns (id, name, position) VALUES
+  ('ideas', '💡 Ideas', 0),
+  ('bench', '🪑 Bench', 1),
+  ('on-deck', '📋 On Deck', 2),
+  ('in-progress', '🔨 In Progress', 3),
+  ('blocked', '🚫 Blocked', 4),
+  ('review', '👀 Review', 5),
+  ('done', '✅ Done', 6)
+ON CONFLICT (id) DO NOTHING;
