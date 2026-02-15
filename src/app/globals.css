@@ -254,6 +254,75 @@ main {
   border-radius: 0.5rem;
 }
 
+/* ═══ FORGE DESIGN SYSTEM KEYFRAMES ═══ */
+
+@keyframes orb-breathe {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes ember-float {
+  0% {
+    transform: translateY(0) translateX(0) scale(1);
+    opacity: 0;
+  }
+  10% { opacity: 0.3; }
+  80% { opacity: 0.15; }
+  100% {
+    transform: translateY(-100vh) translateX(var(--drift, 0px)) scale(0.3);
+    opacity: 0;
+  }
+}
+
+@keyframes forge-pulse {
+  0%, 100% { box-shadow: 0 0 15px rgba(255, 69, 0, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(255, 69, 0, 0.5); }
+}
+
+@keyframes flame-fill {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ember-burst {
+  0% { transform: scale(0); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.6; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+.ambient-orb {
+  animation: glow-breathe 5s ease-in-out infinite;
+}
+
+.ember-particle {
+  animation: ember-float linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient-orb,
+  .ember-particle {
+    animation: none !important;
+  }
+  .ember-particle {
+    display: none;
+  }
+}
+
 /* Alert vignette overlay */
 @keyframes alert-pulse {
   0%, 100% { opacity: 0.6; }
