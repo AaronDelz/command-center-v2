@@ -1,74 +1,209 @@
 'use client';
 
+import { color, shadow, animation, radius, typography } from '@/styles/tokens';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { useEffect, useState } from 'react';
+
 interface StreakCounterProps {
   current: number;
   best: number;
   lastPostDate: string;
+  postsThisMonth: number;
+  totalImpressions: number;
 }
 
-export function StreakCounter({ current, best, lastPostDate }: StreakCounterProps) {
-  const isActive = current > 0;
-  const rings = Array.from({ length: Math.min(current, 30) }, (_, i) => i);
+export function StreakCounter({
+  current,
+  best,
+  lastPostDate,
+  postsThisMonth,
+  totalImpressions,
+}: StreakCounterProps): React.ReactElement {
+  const [flames, setFlames] = useState<Array<{ id: number; x: number; delay: number; size: number }>>([]);
+
+  useEffect(() => {
+    // Generate flame particles based on streak length
+    const count = Math.min(current * 3, 20);
+    setFlames(
+      Array.from({ length: count }, (_, i) => ({
+        id: i,
+        x: 20 + Math.random() * 60,
+        delay: Math.random() * 2,
+        size: 4 + Math.random() * 8,
+      }))
+    );
+  }, [current]);
+
+  const daysSincePost = Math.floor(
+    (Date.now() - new Date(lastPostDate).getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const streakAlive = daysSincePost <= 1;
 
   return (
-    <div className="bg-surface/80 backdrop-blur-sm rounded-xl border border-border p-6 text-center relative overflow-hidden">
-      {/* Background glow */}
-      {isActive && (
-        <div className="absolute inset-0 bg-gradient-to-b from-orange-500/5 to-transparent pointer-events-none" />
-      )}
-
-      <div className="relative z-10">
-        {/* Streak fire ring */}
-        <div className="relative w-32 h-32 mx-auto mb-4">
-          {/* Animated rings */}
-          <svg viewBox="0 0 128 128" className="w-full h-full">
-            {rings.map((i) => (
-              <circle
-                key={i}
-                cx="64"
-                cy="64"
-                r={50 - i * 0.5}
-                fill="none"
-                stroke={`rgba(249, 115, 22, ${0.1 + (i / rings.length) * 0.3})`}
-                strokeWidth="1"
-                className="animate-pulse"
-                style={{ animationDelay: `${i * 100}ms` }}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+      {/* Streak Card — Hero */}
+      <GlassCard hover={false} padding="none">
+        <div
+          style={{
+            position: 'relative',
+            overflow: 'hidden',
+            padding: '24px',
+            textAlign: 'center',
+            minHeight: '140px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {/* Flame particles */}
+          {streakAlive &&
+            flames.map((f) => (
+              <div
+                key={f.id}
+                style={{
+                  position: 'absolute',
+                  bottom: '10%',
+                  left: `${f.x}%`,
+                  width: `${f.size}px`,
+                  height: `${f.size}px`,
+                  borderRadius: '50%',
+                  background: `radial-gradient(circle, ${color.ember.flame}, ${color.ember.DEFAULT})`,
+                  opacity: 0,
+                  animation: `flame-rise 2s ease-out ${f.delay}s infinite`,
+                  pointerEvents: 'none',
+                }}
               />
             ))}
-            {/* Main ring */}
-            <circle
-              cx="64"
-              cy="64"
-              r="50"
-              fill="none"
-              stroke={isActive ? '#f97316' : '#3a3a4a'}
-              strokeWidth="3"
-              strokeDasharray={`${(current / Math.max(best, 7)) * 314} 314`}
-              strokeLinecap="round"
-              transform="rotate(-90 64 64)"
-              className="transition-all duration-1000"
-            />
-          </svg>
 
-          {/* Center content */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl">{isActive ? '🔥' : '❄️'}</span>
-            <span className="text-2xl font-bold text-foreground">{current}</span>
+          {/* Ember glow behind number */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '100px',
+              height: '100px',
+              borderRadius: '50%',
+              background: streakAlive
+                ? `radial-gradient(circle, rgba(255, 107, 53, 0.3), transparent 70%)`
+                : 'none',
+              animation: streakAlive ? `glow-breathe 3s ease-in-out infinite` : 'none',
+              pointerEvents: 'none',
+            }}
+          />
+
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ fontSize: '2rem', marginBottom: '4px' }}>
+              {streakAlive ? '🔥' : '💀'}
+            </div>
+            <div
+              style={{
+                fontSize: '2.5rem',
+                fontWeight: typography.fontWeight.bold,
+                color: streakAlive ? color.ember.flame : color.text.secondary,
+                lineHeight: 1,
+                textShadow: streakAlive ? `0 0 20px rgba(255, 179, 71, 0.5)` : 'none',
+              }}
+            >
+              {current}
+            </div>
+            <div
+              style={{
+                fontSize: typography.fontSize.caption,
+                color: color.text.secondary,
+                textTransform: 'uppercase',
+                letterSpacing: typography.letterSpacing.widest,
+                marginTop: '4px',
+              }}
+            >
+              Day Streak
+            </div>
+            <div
+              style={{
+                fontSize: typography.fontSize.metadata,
+                color: color.text.dim,
+                marginTop: '8px',
+              }}
+            >
+              Best: {best} days
+            </div>
           </div>
         </div>
+      </GlassCard>
 
-        <h3 className="text-lg font-semibold text-foreground">
-          {isActive ? `${current} Day Streak` : 'No Active Streak'}
-        </h3>
-        <p className="text-sm text-text-muted mt-1">
-          Best: {best} days • Last post: {lastPostDate}
-        </p>
-        {current >= best && current > 0 && (
-          <span className="inline-block mt-2 text-xs bg-orange-500/20 text-orange-400 px-3 py-1 rounded-full">
-            🏆 Personal Best!
-          </span>
-        )}
-      </div>
+      {/* Posts This Month */}
+      <GlassCard hover={false} padding="md">
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '1.2rem', marginBottom: '4px' }}>📝</div>
+          <div
+            style={{
+              fontSize: '2rem',
+              fontWeight: typography.fontWeight.bold,
+              color: color.text.primary,
+              lineHeight: 1,
+            }}
+          >
+            {postsThisMonth}
+          </div>
+          <div
+            style={{
+              fontSize: typography.fontSize.caption,
+              color: color.text.secondary,
+              textTransform: 'uppercase',
+              letterSpacing: typography.letterSpacing.widest,
+              marginTop: '4px',
+            }}
+          >
+            Posts This Month
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Total Impressions */}
+      <GlassCard hover={false} padding="md">
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '1.2rem', marginBottom: '4px' }}>👁️</div>
+          <div
+            style={{
+              fontSize: '2rem',
+              fontWeight: typography.fontWeight.bold,
+              color: color.text.primary,
+              lineHeight: 1,
+            }}
+          >
+            {totalImpressions > 0 ? totalImpressions.toLocaleString() : '—'}
+          </div>
+          <div
+            style={{
+              fontSize: typography.fontSize.caption,
+              color: color.text.secondary,
+              textTransform: 'uppercase',
+              letterSpacing: typography.letterSpacing.widest,
+              marginTop: '4px',
+            }}
+          >
+            Total Impressions
+          </div>
+        </div>
+      </GlassCard>
+
+      <style jsx global>{`
+        @keyframes flame-rise {
+          0% {
+            transform: translateY(0) scale(1);
+            opacity: 0.8;
+          }
+          50% {
+            opacity: 0.6;
+          }
+          100% {
+            transform: translateY(-60px) scale(0.2);
+            opacity: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 }
