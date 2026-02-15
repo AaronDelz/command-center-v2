@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { WorkspaceTabs } from '@/components/docs/WorkspaceTabs';
 import { DocsViewer } from '@/components/docs/DocsViewer';
@@ -40,7 +40,7 @@ interface VaultFile {
 
 type DocSection = 'vault' | 'workspace';
 
-export default function DocsPage(): React.ReactElement {
+function DocsPageContent(): React.ReactElement {
   const searchParams = useSearchParams();
   const [section, setSection] = useState<DocSection>(() => {
     // Default to workspace if file param present, vault otherwise
@@ -454,5 +454,13 @@ export default function DocsPage(): React.ReactElement {
         </>
       )}
     </div>
+  );
+}
+
+export default function DocsPage(): React.ReactElement {
+  return (
+    <Suspense fallback={<div style={{ padding: '2rem', color: '#94A3B8' }}>Loading docs...</div>}>
+      <DocsPageContent />
+    </Suspense>
   );
 }

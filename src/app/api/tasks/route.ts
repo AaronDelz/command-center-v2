@@ -17,6 +17,9 @@ interface TaskBody {
   Urgency?: string;
   Client?: string;
   tags?: string[];
+  dueDate?: string;
+  due?: string;
+  Due?: string;
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const description = body.description ?? body.desc ?? body.details ?? body.Extra ?? '';
     const owner = body.owner ?? 'aaron';
     const client = body.Client ?? '';
-    const targetColumn = body.column ?? 'ideas';
+    const targetColumn = body.column ?? 'todo';
     
     // Map urgency strings to priority
     const urgencyMap: Record<string, 'none' | 'low' | 'medium' | 'high'> = {
@@ -57,6 +60,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const priority = body.priority ?? urgencyMap[(body.Urgency ?? '').toLowerCase()] ?? 'none';
     
     const tags = body.tags ?? [];
+    const dueDate = body.dueDate ?? body.due ?? body.Due ?? '';
 
     const newCard: KanbanCard = {
       id: `card-${Date.now()}`,
@@ -68,6 +72,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       notes: '',
       created: new Date().toISOString(),
       ...(client ? { client } : {}),
+      ...(dueDate ? { dueDate } : {}),
     };
 
     const data = await readKanbanData();

@@ -5,10 +5,11 @@ import { usePathname } from 'next/navigation';
 
 const navItems = [
   { label: 'Dashboard', href: '/', icon: '◉' },
+  { label: 'Goals', href: '/goals', icon: '🎯' },
   { label: 'Notes', href: '/notes', icon: '✎' },
   { label: 'Docs', href: '/docs', icon: '📄' },
   { label: 'Activity', href: '/activity', icon: '⚡' },
-  { label: 'Calendar', href: '/calendar', icon: '📅' },
+  { label: 'Content', href: '/content', icon: '📊' },
 ];
 
 export function BottomNav(): React.ReactElement {

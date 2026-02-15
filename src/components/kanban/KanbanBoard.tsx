@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { KanbanData, KanbanCard } from '@/lib/types';
 import { KanbanColumn } from './KanbanColumn';
 import { CardModal } from './CardModal';
+import { ListView } from './ListView';
 
 interface ModalState {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface ModalState {
 }
 
 type OwnerFilter = 'all' | 'aaron' | 'orion';
+type SortMode = 'default' | 'dueDate' | 'priority';
 
 export function KanbanBoard(): React.ReactElement {
   const [data, setData] = useState<KanbanData | null>(null);
@@ -20,6 +22,10 @@ export function KanbanBoard(): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [ownerFilter, setOwnerFilter] = useState<OwnerFilter>('all');
+  const [clientFilter, setClientFilter] = useState<string>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('default');
+  const [hideDone, setHideDone] = useState(true);
+  const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
     card: null,
@@ -153,6 +159,35 @@ export function KanbanBoard(): React.ReactElement {
     }
   };
 
+  const handleAddCardFromList = async (partialCard: Partial<KanbanCard>, columnId: string) => {
+    if (!data) return;
+    setSaving(true);
+    try {
+      const card: KanbanCard = {
+        id: `card-${Date.now()}`,
+        title: partialCard.title ?? 'Untitled',
+        description: partialCard.description ?? '',
+        owner: partialCard.owner ?? 'aaron',
+        priority: partialCard.priority ?? 'none',
+        tags: partialCard.tags ?? [],
+        notes: partialCard.notes ?? '',
+        created: new Date().toISOString(),
+        ...(partialCard.dueDate ? { dueDate: partialCard.dueDate } : {}),
+      };
+      const response = await fetch('/api/kanban', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ card, fromColumnId: columnId, toColumnId: columnId, isNew: true }),
+      });
+      if (!response.ok) throw new Error('Failed to add card');
+      await fetchData();
+    } catch (err) {
+      console.error('Error adding card:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -182,6 +217,13 @@ export function KanbanBoard(): React.ReactElement {
     );
   }
 
+  // Extract unique clients
+  const allClients = Array.from(
+    new Set(
+      data.columns.flatMap((col) => col.cards.map((c) => c.client).filter(Boolean))
+    )
+  ).sort() as string[];
+
   return (
     <div className="space-y-4">
       {/* Board Header */}
@@ -193,6 +235,28 @@ export function KanbanBoard(): React.ReactElement {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 bg-surface-raised/60 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('board')}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === 'board' ? 'bg-accent text-white' : 'text-text-muted hover:text-foreground hover:bg-surface-raised'}`}
+              title="Board view"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-accent text-white' : 'text-text-muted hover:text-foreground hover:bg-surface-raised'}`}
+              title="List view"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+
           {/* Owner Filter */}
           <div className="flex items-center gap-1 bg-surface-raised/60 rounded-lg p-1">
             {(['all', 'aaron', 'orion'] as const).map((filter) => (
@@ -209,6 +273,43 @@ export function KanbanBoard(): React.ReactElement {
               </button>
             ))}
           </div>
+
+          {/* Client Filter */}
+          {allClients.length > 0 && (
+            <div className="flex items-center gap-1 bg-surface-raised/60 rounded-lg p-1">
+              {(['all', ...allClients] as const).map((client) => (
+                <button
+                  key={client}
+                  onClick={() => setClientFilter(client)}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    clientFilter === client
+                      ? 'bg-accent text-white'
+                      : 'text-text-muted hover:text-foreground hover:bg-surface-raised'
+                  }`}
+                >
+                  {client === 'all' ? 'All Clients' : client}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Sort */}
+          <div className="flex items-center gap-1 bg-surface-raised/60 rounded-lg p-1">
+            {([['default', 'Default'], ['dueDate', 'Due Date'], ['priority', 'Priority']] as const).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setSortMode(value as SortMode)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  sortMode === value
+                    ? 'bg-accent text-white'
+                    : 'text-text-muted hover:text-foreground hover:bg-surface-raised'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={handleAddCard}
             disabled={saving}
@@ -222,18 +323,36 @@ export function KanbanBoard(): React.ReactElement {
         </div>
       </div>
 
-      {/* Columns */}
-      <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth -mx-4 px-4 md:mx-0 md:px-0">
-        {data.columns.map((column) => (
-          <KanbanColumn
-            key={column.id}
-            column={column}
-            ownerFilter={ownerFilter}
-            onCardClick={handleCardClick}
-            onMoveCard={handleMoveCard}
-          />
-        ))}
-      </div>
+      {/* Board or List View */}
+      {viewMode === 'board' ? (
+        <div className="flex gap-3 md:gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scroll-smooth -mx-4 px-4 md:mx-0 md:px-0">
+          {data.columns.map((column) => (
+            <KanbanColumn
+              key={column.id}
+              column={column}
+              ownerFilter={ownerFilter}
+              clientFilter={clientFilter}
+              sortMode={sortMode}
+              hideDone={hideDone}
+              onToggleHideDone={() => setHideDone(!hideDone)}
+              onCardClick={handleCardClick}
+              onMoveCard={handleMoveCard}
+            />
+          ))}
+        </div>
+      ) : (
+        <ListView
+          data={data}
+          ownerFilter={ownerFilter}
+          clientFilter={clientFilter}
+          sortMode={sortMode}
+          hideDone={hideDone}
+          onToggleHideDone={() => setHideDone(!hideDone)}
+          onCardClick={handleCardClick}
+          onMoveCard={handleMoveCard}
+          onAddCard={handleAddCardFromList}
+        />
+      )}
 
       {/* Modal */}
       {modal.isOpen && (

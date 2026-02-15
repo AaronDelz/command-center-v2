@@ -92,12 +92,17 @@ export function KanbanCard({ card, columnId, onClick }: KanbanCardProps): React.
         </div>
       )}
 
-      {/* Footer: Owner + Client + Priority badge */}
+      {/* Footer: Owner + Client + Due + Priority badge */}
       <div className="flex items-center justify-between text-[10px] text-text-muted">
         <div className="flex items-center gap-1.5">
           <span className="capitalize">{card.owner}</span>
           {card.client && (
             <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 text-[9px]">{card.client}</span>
+          )}
+          {card.dueDate && (
+            <span className={`text-[9px] ${new Date(card.dueDate + 'T23:59:59') < new Date() ? 'text-red-400 font-medium' : ''}`}>
+              {new Date(card.dueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
           )}
         </div>
         {showPriority && (

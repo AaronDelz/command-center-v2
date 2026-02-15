@@ -195,6 +195,11 @@ function truncate(str, len) {
   return str.length > len ? str.substring(0, len) + '...' : str;
 }
 
+// Catch unhandled errors so Node doesn't crash
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception (will retry):', err.message);
+});
+
 // Connect to Gateway
 function connect() {
   const token = getGatewayToken();
@@ -205,7 +210,15 @@ function connect() {
   
   console.log(`Connecting to ${GATEWAY_URL}...`);
   
-  const ws = new WebSocket(GATEWAY_URL);
+  let ws;
+  try {
+    ws = new WebSocket(GATEWAY_URL);
+  } catch (err) {
+    console.error('WebSocket creation failed:', err.message);
+    console.log(`Retrying in ${RECONNECT_DELAY/1000}s...`);
+    setTimeout(connect, RECONNECT_DELAY);
+    return;
+  }
   
   ws.on('open', () => {
     console.log('Connected! Sending handshake...');
@@ -277,14 +290,23 @@ function connect() {
     }
   });
   
-  ws.on('close', () => {
-    console.log(`Disconnected. Reconnecting in ${RECONNECT_DELAY/1000}s...`);
-    updateStatus('alert', 'Bridge disconnected', 'Reconnecting...');
+  let reconnecting = false;
+  const scheduleReconnect = () => {
+    if (reconnecting) return;
+    reconnecting = true;
+    console.log(`Reconnecting in ${RECONNECT_DELAY/1000}s...`);
     setTimeout(connect, RECONNECT_DELAY);
+  };
+
+  ws.on('close', () => {
+    console.log('Disconnected.');
+    updateStatus('idle', null, 'Bridge reconnecting...');
+    scheduleReconnect();
   });
   
   ws.on('error', (err) => {
     console.error('WebSocket error:', err.message);
+    scheduleReconnect();
   });
 }
 

@@ -20,6 +20,7 @@ const actions: QuickAction[] = [
 export function QuickActions(): React.ReactElement {
   const [requestedId, setRequestedId] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
+  const [expanded, setExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = useCallback(async (files: FileList) => {
@@ -51,9 +52,25 @@ export function QuickActions(): React.ReactElement {
 
   return (
     <div className="p-4 space-y-2">
-      <p className="text-xs text-text-muted uppercase tracking-wider mb-3 px-1">
-        Quick Actions
-      </p>
+      <div className="flex items-center justify-between mb-3 px-1">
+        <p className="text-xs text-text-muted uppercase tracking-wider">
+          Quick Actions
+        </p>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-text-muted hover:text-foreground transition-all"
+          title={expanded ? 'Collapse' : 'Expand'}
+        >
+          <svg
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
       <input
         ref={inputRef}
         type="file"
@@ -61,7 +78,7 @@ export function QuickActions(): React.ReactElement {
         className="hidden"
         onChange={(e) => { if (e.target.files?.length) handleUpload(e.target.files); e.target.value = ''; }}
       />
-      {actions.map((action) => {
+      {actions.filter((a) => a.isUpload || expanded).map((action) => {
         const isRequested = requestedId === action.id;
         const isUploading = action.isUpload && uploadStatus === 'uploading';
         const isUploadSuccess = action.isUpload && uploadStatus === 'success';

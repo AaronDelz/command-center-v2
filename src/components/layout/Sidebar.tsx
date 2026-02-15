@@ -1,40 +1,62 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { StatusOrb } from '../status/StatusOrb';
-import { SubAgentOrbs } from '../status/SubAgentOrbs';
-import type { SubAgent } from '../status/SubAgentOrbs';
-import { QuickActions } from '../actions/QuickActions';
-import { GlobalSearch } from '../search/GlobalSearch';
+import { SimpleStatusOrb } from '../ui/StatusOrb';
+import { color, typography, animation, layout, zIndex, glass, radius } from '@/styles/tokens';
 
 interface NavItem {
   label: string;
   href: string;
   icon: string;
+  badge?: number;
 }
 
-const navItems: NavItem[] = [
-  { label: 'Dashboard', href: '/', icon: '◉' },
-  { label: 'Notes', href: '/notes', icon: '✎' },
-  { label: 'Docs', href: '/docs', icon: '📄' },
-  { label: 'Activity', href: '/activity', icon: '⚡' },
-  { label: 'Calendar', href: '/calendar', icon: '📅' },
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: 'COMMAND DECK',
+    items: [
+      { label: 'Dashboard', href: '/', icon: '◉' },
+      { label: 'Kanban Board', href: '/kanban', icon: '⚒' },
+    ],
+  },
+  {
+    label: 'OPERATIONS',
+    items: [
+      { label: 'Content Hub', href: '/content', icon: '📱' },
+      { label: 'Client Command', href: '/clients', icon: '👥', badge: 3 },
+    ],
+  },
+  {
+    label: 'GROWTH',
+    items: [
+      { label: 'The Helm', href: '/helm', icon: '🎯' },
+    ],
+  },
+  {
+    label: 'INTEL',
+    items: [
+      { label: 'Vault', href: '/vault', icon: '📚' },
+      { label: 'Calendar', href: '/calendar', icon: '📅' },
+    ],
+  },
 ];
 
 interface StatusData {
   state: string;
   stateDescription: string;
-  currentTask: string | null;
-  activityLog: Array<{ time: string; action: string }>;
-  subAgents: SubAgent[];
 }
 
-function mapState(state: string): 'idle' | 'active' | 'alert' | 'thinking' {
-  if (state === 'thinking') return 'thinking';
+function mapStatus(state: string): 'online' | 'thinking' | 'alert' | 'idle' {
+  if (state === 'thinking' || state === 'working' || state === 'coding' || state === 'reading') return 'thinking';
   if (state === 'alert') return 'alert';
-  if (state === 'working' || state === 'coding' || state === 'reading') return 'active';
+  if (state === 'active' || state === 'online') return 'online';
   return 'idle';
 }
 
@@ -43,154 +65,254 @@ export function Sidebar(): React.ReactElement {
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<StatusData | null>(null);
 
-  // Poll status every 3 seconds
   useEffect(() => {
     const fetchStatus = async (): Promise<void> => {
       try {
         const res = await fetch('/api/status');
-        if (res.ok) {
-          const data = await res.json();
-          setStatus(data);
-        }
-      } catch {
-        // Silently fail
-      }
+        if (res.ok) setStatus(await res.json());
+      } catch { /* silent */ }
     };
     fetchStatus();
-    const interval = setInterval(fetchStatus, 3000);
+    const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Close sidebar when route changes (mobile)
-  useEffect(() => {
-    setIsOpen(false);
-  }, [pathname]);
+  useEffect(() => { setIsOpen(false); }, [pathname]);
 
-  // Close sidebar on escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') setIsOpen(false);
-    };
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, []);
-
-  const toggleSidebar = useCallback(() => {
-    setIsOpen((prev) => !prev);
-  }, []);
+  const orbStatus = status ? mapStatus(status.state) : 'online';
 
   return (
     <>
-      {/* Alert Vignette Overlay */}
-      {status?.state === 'alert' && (
-        <div className="alert-vignette" aria-hidden="true" />
-      )}
-
-      {/* Mobile Hamburger Button */}
+      {/* Mobile hamburger */}
       <button
         type="button"
-        onClick={toggleSidebar}
-        className="fixed top-4 left-4 z-50 md:hidden p-3 bg-surface/90 backdrop-blur-sm border border-border rounded-lg hover:bg-surface-raised transition-colors"
-        aria-label="Toggle navigation menu"
+        onClick={() => setIsOpen(v => !v)}
+        className="fixed top-4 left-4 z-50 md:hidden p-3 rounded-lg"
+        style={{
+          background: color.bg.elevated,
+          backdropFilter: glass.blur.nav,
+          border: `1px solid ${color.glass.border}`,
+        }}
+        aria-label="Toggle navigation"
       >
         <div className="w-5 h-4 flex flex-col justify-between">
-          <span className={`block h-0.5 bg-foreground transition-all duration-300 ${isOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
-          <span className={`block h-0.5 bg-foreground transition-opacity duration-300 ${isOpen ? 'opacity-0' : ''}`} />
-          <span className={`block h-0.5 bg-foreground transition-all duration-300 ${isOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
+          <span className={`block h-0.5 transition-all duration-300 ${isOpen ? 'rotate-45 translate-y-1.5' : ''}`} style={{ background: color.text.primary }} />
+          <span className={`block h-0.5 transition-opacity duration-300 ${isOpen ? 'opacity-0' : ''}`} style={{ background: color.text.primary }} />
+          <span className={`block h-0.5 transition-all duration-300 ${isOpen ? '-rotate-45 -translate-y-1.5' : ''}`} style={{ background: color.text.primary }} />
         </div>
       </button>
 
-      {/* Mobile Overlay */}
+      {/* Mobile overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 md:hidden"
+          className="fixed inset-0 z-30 md:hidden"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
           onClick={() => setIsOpen(false)}
-          aria-hidden="true"
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`
-          fixed left-0 top-0 h-screen w-[280px] bg-surface/95 backdrop-blur-md border-r border-border flex flex-col z-40
-          transition-transform duration-300 ease-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:translate-x-0
-        `}
+        className={`fixed left-0 top-0 h-screen flex flex-col transition-transform duration-300 ease-out
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}
+        style={{
+          width: layout.sidebar.width,
+          background: 'rgba(11, 11, 18, 0.92)',
+          backdropFilter: glass.blur.nav,
+          WebkitBackdropFilter: glass.blur.nav,
+          borderRight: `1px solid rgba(255, 255, 255, 0.04)`,
+          zIndex: zIndex.sidebar,
+        }}
       >
+        {/* Ember edge glow */}
+        <div
+          className="absolute top-0 right-0 bottom-0 pointer-events-none"
+          style={{
+            width: '1px',
+            background: `linear-gradient(180deg, transparent, rgba(255,107,53,0.15) 30%, rgba(255,107,53,0.08) 70%, transparent)`,
+          }}
+        />
+
         {/* Header */}
-        <div className="p-6 border-b border-border flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              Command Center
-            </h1>
-            <p className="text-sm text-text-muted mt-1">v2.0</p>
-          </div>
-          {/* Mobile Close Button */}
-          <button
-            type="button"
-            onClick={() => setIsOpen(false)}
-            className="md:hidden p-2 hover:bg-surface-raised rounded-lg transition-colors"
-            aria-label="Close navigation menu"
+        <div style={{ padding: '24px 22px 18px', borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
+          <h1
+            className="font-cinzel"
+            style={{
+              fontSize: '1.2rem',
+              fontWeight: 600,
+              color: color.text.primary,
+              letterSpacing: typography.letterSpacing.widest,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}
           >
-            <span className="text-xl text-text-muted">×</span>
-          </button>
+            <span style={{ color: color.ember.DEFAULT }}>🔥</span> THE FORGE
+          </h1>
+          <div style={{ fontSize: '0.7rem', color: color.text.secondary, marginTop: '3px', fontStyle: 'italic', letterSpacing: '0.02em' }}>
+            Iron sharpens iron
+          </div>
         </div>
 
-        {/* Global Search */}
-        <div className="p-4 border-b border-border">
-          <GlobalSearch />
-        </div>
-
-        {/* Status Orb + Info */}
-        <div className="p-6 border-b border-border flex flex-col items-center gap-2">
-          <StatusOrb state={status ? mapState(status.state) : 'idle'} />
-          {status?.stateDescription && (
-            <p className="text-xs text-text-muted text-center">{status.stateDescription}</p>
-          )}
-          {status?.currentTask && (
-            <p className="text-xs text-accent text-center truncate max-w-full">{status.currentTask}</p>
-          )}
-          <SubAgentOrbs agents={status?.subAgents || []} />
+        {/* Status Orb */}
+        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
+          <SimpleStatusOrb status={orbStatus} size="lg" />
+          <span style={{
+            fontSize: '0.65rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.15em',
+            color: orbStatus === 'online' ? color.status.healthy : orbStatus === 'alert' ? color.status.error : color.text.secondary,
+            fontWeight: 500,
+          }}>
+            ● {orbStatus === 'online' ? 'Online' : orbStatus === 'thinking' ? 'Working' : orbStatus === 'alert' ? 'Alert' : 'Idle'}
+          </span>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 overflow-y-auto">
-          <ul className="space-y-1">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <li key={item.href}>
+        <nav className="flex-1 overflow-y-auto" style={{ padding: '8px 0' }}>
+          {navGroups.map((group) => (
+            <div key={group.label} style={{ padding: '12px 16px 4px' }}>
+              <div style={{
+                fontSize: '0.6rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.18em',
+                color: color.text.accent,
+                marginBottom: '6px',
+                fontWeight: 600,
+                paddingLeft: '6px',
+              }}>
+                {group.label}
+              </div>
+              {group.items.map((item) => {
+                const isActive = pathname === item.href;
+                return (
                   <Link
+                    key={item.href}
                     href={item.href}
-                    className={`
-                      flex items-center gap-3 px-4 py-3 rounded-lg min-h-[44px]
-                      transition-all duration-200 relative
-                      ${isActive 
-                        ? 'bg-accent/20 text-accent border-l-2 border-accent' 
-                        : 'text-text-muted hover:bg-surface-raised hover:text-foreground hover:translate-x-1'
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '9px 14px',
+                      borderRadius: radius.md,
+                      color: isActive ? color.ember.flame : color.text.secondary,
+                      background: isActive ? 'rgba(255,107,53,0.07)' : 'transparent',
+                      fontSize: '0.82rem',
+                      fontWeight: 400,
+                      marginBottom: '2px',
+                      position: 'relative',
+                      textDecoration: 'none',
+                      transition: `all ${animation.duration.normal} ${animation.easing.default}`,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.color = color.text.primary;
+                        e.currentTarget.style.transform = 'translateX(3px)';
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
                       }
-                    `}
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.color = color.text.secondary;
+                        e.currentTarget.style.transform = 'none';
+                        e.currentTarget.style.background = 'transparent';
+                      }
+                    }}
                   >
-                    <span className="text-lg">{item.icon}</span>
-                    <span className="font-medium">{item.label}</span>
+                    {/* Active ember bar */}
+                    {isActive && (
+                      <div style={{
+                        position: 'absolute',
+                        left: 0,
+                        top: '6px',
+                        bottom: '6px',
+                        width: '3px',
+                        borderRadius: '0 2px 2px 0',
+                        background: color.ember.DEFAULT,
+                        boxShadow: `0 0 8px rgba(255,107,53,0.4)`,
+                      }} />
+                    )}
+                    <span style={{ fontSize: '0.95rem', width: '22px', textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                    <span>{item.label}</span>
+                    {item.badge && (
+                      <span style={{
+                        marginLeft: 'auto',
+                        fontSize: '0.6rem',
+                        padding: '1px 7px',
+                        borderRadius: '10px',
+                        background: 'rgba(255,107,53,0.15)',
+                        color: color.ember.DEFAULT,
+                        fontWeight: 600,
+                      }}>
+                        {item.badge}
+                      </span>
+                    )}
                   </Link>
-                </li>
-              );
-            })}
-          </ul>
+                );
+              })}
+            </div>
+          ))}
+
+          {/* Settings - pushed to bottom */}
+          <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: `1px solid rgba(255,255,255,0.04)`, padding: '12px 16px 4px' }}>
+            <Link
+              href="/settings"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '9px 14px',
+                borderRadius: radius.md,
+                color: pathname === '/settings' ? color.ember.flame : color.text.secondary,
+                background: pathname === '/settings' ? 'rgba(255,107,53,0.07)' : 'transparent',
+                fontSize: '0.82rem',
+                textDecoration: 'none',
+                transition: `all ${animation.duration.normal} ${animation.easing.default}`,
+              }}
+            >
+              <span style={{ fontSize: '0.95rem', width: '22px', textAlign: 'center' }}>⚙</span>
+              <span>Settings</span>
+            </Link>
+          </div>
         </nav>
 
-        {/* Quick Actions */}
-        <div className="border-t border-border">
-          <QuickActions />
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-border">
-          <p className="text-xs text-text-muted text-center">
-            Orion • Local Dashboard
-          </p>
+        {/* Footer — User profile */}
+        <div style={{
+          padding: '14px 20px',
+          borderTop: `1px solid rgba(255,255,255,0.05)`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '28px',
+              height: '28px',
+              borderRadius: '50%',
+              background: `linear-gradient(135deg, ${color.ember.DEFAULT}, ${color.ember.coal})`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.65rem',
+              fontWeight: 600,
+              color: color.text.primary,
+            }}>
+              AD
+            </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: color.text.primary, fontWeight: 500 }}>Aaron Delz</div>
+              <div style={{ fontSize: '0.6rem', color: color.text.dim }}>Commander</div>
+            </div>
+          </div>
+          {/* Submarine Dolphins insignia */}
+          <svg width="28" height="14" viewBox="0 0 60 28" fill="none" style={{ opacity: 0.2, transition: 'opacity 0.3s' }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.5'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.2'; }}
+          >
+            <title>Submarine Warfare Insignia</title>
+            <path d="M30 6 C24 2, 14 2, 6 8 C4 10, 3 13, 5 15 C7 17, 12 16, 16 14 C18 13, 20 12, 22 12 L24 14 C26 16, 28 17, 30 17 C32 17, 34 16, 36 14 L38 12 C40 12, 42 13, 44 14 C48 16, 53 17, 55 15 C57 13, 56 10, 54 8 C46 2, 36 2, 30 6Z" fill="currentColor" opacity="0.4"/>
+            <circle cx="30" cy="11" r="3" fill="currentColor" opacity="0.5"/>
+          </svg>
         </div>
       </aside>
     </>

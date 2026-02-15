@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Starfield } from "@/components/layout/Starfield";
+import { AmbientBackground } from "@/components/ui/AmbientBackground";
+import { EmberParticles } from "@/components/ui/EmberParticles";
 import { Sidebar } from "@/components/layout/Sidebar";
-import { BottomNav } from "@/components/layout/BottomNav";
-import { QOTD } from "@/components/layout/QOTD";
+import { MobileNav } from "@/components/layout/MobileNav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Command Center V2",
-  description: "Orion Dashboard - Local Command Center",
+  title: "The Forge",
+  description: "The Forge — Orion & Aaron's Workshop",
 };
 
 export const viewport: Viewport = {
@@ -34,16 +34,26 @@ export function RootLayout({
 }>): React.ReactElement {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
+        style={{ background: '#0d0d14', color: '#f0ece6' }}
       >
-        <Starfield />
+        <AmbientBackground />
+        <EmberParticles count={18} />
         <Sidebar />
-        <main className="min-h-screen transition-all duration-300 md:ml-[280px] pt-16 md:pt-0 pb-16 md:pb-0">
-          <QOTD />
+        <main
+          className="min-h-screen transition-all duration-300 md:ml-[280px] pb-20 md:pb-0 px-4 md:px-8 py-4 md:py-7"
+          style={{ position: 'relative', zIndex: 1 }}
+        >
           {children}
         </main>
-        <BottomNav />
+        <MobileNav />
       </body>
     </html>
   );

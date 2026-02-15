@@ -80,47 +80,47 @@ export function StatusOrb({ state = 'idle' }: StatusOrbProps): React.ReactElemen
           };
         case 'thinking':
           return {
-            baseRadius: 44,
-            blobAmp: 4,
-            blobSpeed: 0.9,
-            pulseAmp: 2.5,
-            pulseSpeed: 1.2,
-            nebulaColor1: [30, 27, 120],    // deep blue
-            nebulaColor2: [67, 56, 202],    // indigo
-            nebulaColor3: [109, 40, 217],   // violet
-            glowAlpha: 0.3,
-            starBrightness: 0.8,
-            constellationAlpha: 0.5,
+            baseRadius: 48,
+            blobAmp: 6,
+            blobSpeed: 1.2,
+            pulseAmp: 4,
+            pulseSpeed: 1.6,
+            nebulaColor1: [30, 27, 140],    // deep blue
+            nebulaColor2: [67, 56, 220],    // bright indigo
+            nebulaColor3: [129, 60, 237],   // vivid violet
+            glowAlpha: 0.45,
+            starBrightness: 0.9,
+            constellationAlpha: 0.65,
             particleCount: 0,
           };
         case 'active':
           return {
-            baseRadius: 50,
-            blobAmp: 7,
-            blobSpeed: 1.6,
-            pulseAmp: 4,
-            pulseSpeed: 2.0,
-            nebulaColor1: [6, 78, 59],      // deep emerald
-            nebulaColor2: [13, 148, 136],   // teal
-            nebulaColor3: [16, 185, 129],   // emerald bright
-            glowAlpha: 0.35,
+            baseRadius: 54,
+            blobAmp: 9,
+            blobSpeed: 1.8,
+            pulseAmp: 5,
+            pulseSpeed: 2.2,
+            nebulaColor1: [6, 95, 70],      // deep emerald
+            nebulaColor2: [13, 168, 146],   // bright teal
+            nebulaColor3: [34, 211, 153],   // vivid emerald
+            glowAlpha: 0.5,
             starBrightness: 1.0,
-            constellationAlpha: 0.7,
-            particleCount: 8,
+            constellationAlpha: 0.85,
+            particleCount: 12,
           };
         case 'alert':
           return {
-            baseRadius: 48,
-            blobAmp: 5,
-            blobSpeed: 2.5,
-            pulseAmp: 4,
-            pulseSpeed: 3.5,
-            nebulaColor1: [127, 29, 29],    // deep red
-            nebulaColor2: [185, 28, 28],    // red
-            nebulaColor3: [234, 88, 12],    // orange
-            glowAlpha: 0.45,
+            baseRadius: 52,
+            blobAmp: 7,
+            blobSpeed: 3.0,
+            pulseAmp: 6,
+            pulseSpeed: 4.0,
+            nebulaColor1: [150, 20, 20],    // deep red
+            nebulaColor2: [220, 38, 38],    // vivid red
+            nebulaColor3: [249, 115, 22],   // bright orange
+            glowAlpha: 0.6,
             starBrightness: 1.0,
-            constellationAlpha: 0.8,
+            constellationAlpha: 0.9,
             particleCount: 0,
           };
       }
@@ -367,17 +367,26 @@ export function StatusOrb({ state = 'idle' }: StatusOrbProps): React.ReactElemen
 
   const label = state === 'active' ? 'working' : state;
 
+  const labelColor = {
+    idle: 'text-text-muted',
+    thinking: 'text-violet-400',
+    active: 'text-emerald-400',
+    alert: 'text-red-400',
+  }[state] || 'text-text-muted';
+
+  const labelGlow = state !== 'idle' ? 'font-semibold' : '';
+
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative w-20 h-20">
+      <div className={`relative ${state !== 'idle' ? 'w-24 h-24' : 'w-20 h-20'} transition-all duration-500 overflow-visible`}>
         <canvas
           ref={canvasRef}
-          className={`absolute inset-0 w-full h-full transition-opacity duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
+          className={`absolute -inset-6 w-[calc(100%+48px)] h-[calc(100%+48px)] transition-opacity duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
           role="status"
           aria-label={`Status: ${label}`}
         />
       </div>
-      <span className="text-sm text-text-muted uppercase tracking-wider">
+      <span className={`text-sm uppercase tracking-wider ${labelColor} ${labelGlow} transition-colors duration-500`}>
         {label}
       </span>
     </div>

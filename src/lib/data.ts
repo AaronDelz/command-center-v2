@@ -1,10 +1,11 @@
 import { promises as fs } from 'fs';
-import type { KanbanData, NotesData, Note, ReportsData } from './types';
+import type { KanbanData, NotesData, Note, ReportsData, GoalsData } from './types';
 
 const DATA_DIR = '/Users/Orion/Documents/projects/command-center-v2/data';
 const KANBAN_PATH = `${DATA_DIR}/kanban.json`;
 const NOTES_PATH = `${DATA_DIR}/notes.json`;
 const REPORTS_PATH = `${DATA_DIR}/reports.json`;
+const GOALS_PATH = `${DATA_DIR}/goals.json`;
 const CLAWD_DIR = '/Users/Orion/clawd';
 
 export async function readKanbanData(): Promise<KanbanData> {
@@ -59,7 +60,7 @@ function transformNote(raw: RawNote): Note {
     id: raw.id,
     text: raw.text,
     done: raw.processed ?? raw.done ?? false,
-    createdAt: raw.created ?? raw.createdAt,
+    createdAt: raw.created ?? raw.createdAt ?? new Date().toISOString(),
   };
   if (raw.updatedAt) note.updatedAt = raw.updatedAt;
   if (raw.tags && raw.tags.length > 0) note.tags = raw.tags;
@@ -166,5 +167,27 @@ export async function readReportContent(reportPath: string): Promise<string> {
   } catch (error) {
     console.error('Error reading report file:', error);
     throw new Error('Failed to read report content');
+  }
+}
+
+// Goals Data Functions
+
+export async function readGoalsData(): Promise<GoalsData> {
+  try {
+    const content = await fs.readFile(GOALS_PATH, 'utf-8');
+    return JSON.parse(content) as GoalsData;
+  } catch (error) {
+    console.error('Error reading goals.json:', error);
+    throw new Error('Failed to read goals data');
+  }
+}
+
+export async function writeGoalsData(data: GoalsData): Promise<void> {
+  try {
+    const content = JSON.stringify(data, null, 2);
+    await fs.writeFile(GOALS_PATH, content, 'utf-8');
+  } catch (error) {
+    console.error('Error writing goals.json:', error);
+    throw new Error('Failed to write goals data');
   }
 }

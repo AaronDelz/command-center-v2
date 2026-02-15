@@ -73,6 +73,45 @@ export interface ActivityData {
   lastUpdated: string;
 }
 
+// Content Types
+
+export interface ContentMetric {
+  actual: number;
+  target: number;
+}
+
+export interface ContentTask {
+  text: string;
+  done: boolean;
+}
+
+export interface ContentDaySchedule {
+  day: string;
+  theme: string;
+  tasks: ContentTask[];
+}
+
+export interface ContentData {
+  streak: { current: number; best: number; lastPostDate: string };
+  weeklyScorecard: {
+    weekOf: string;
+    xPosts: ContentMetric;
+    communityPosts: ContentMetric;
+    youtubeVideos: ContentMetric;
+    youtubeLive: ContentMetric;
+    emailNewsletter: ContentMetric;
+    callsHeld: ContentMetric;
+  };
+  schedule: Record<string, ContentDaySchedule>;
+  platforms: {
+    xFollowers: number;
+    communityMembers: number;
+    eliteMembers: number;
+    youtubeSubscribers: number;
+  };
+  lastUpdated: string;
+}
+
 // Kanban Types
 
 export interface KanbanCard {
@@ -87,6 +126,7 @@ export interface KanbanCard {
   completed?: string;
   acknowledged?: boolean;
   client?: string;
+  dueDate?: string;
 }
 
 export interface KanbanColumn {
@@ -98,5 +138,35 @@ export interface KanbanColumn {
 
 export interface KanbanData {
   columns: KanbanColumn[];
+  lastUpdated: string;
+}
+
+// Goal Types
+
+export type GoalCategory = 'financial' | 'health' | 'business' | 'personal' | 'technical';
+export type GoalStatus = 'active' | 'completed' | 'paused';
+
+export interface GoalMilestone {
+  label: string;
+  value: number;
+  reached: boolean;
+}
+
+export interface Goal {
+  id: string;
+  title: string;
+  description?: string;
+  category: GoalCategory;
+  target: number;
+  current: number;
+  unit: string;
+  deadline?: string;
+  milestones: GoalMilestone[];
+  created: string;
+  status: GoalStatus;
+}
+
+export interface GoalsData {
+  goals: Goal[];
   lastUpdated: string;
 }

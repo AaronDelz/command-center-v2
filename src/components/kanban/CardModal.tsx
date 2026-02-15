@@ -46,6 +46,7 @@ export function CardModal({
   const [tags, setTags] = useState(card?.tags?.join(', ') ?? '');
   const [notes, setNotes] = useState(card?.notes ?? '');
   const [client, setClient] = useState(card?.client ?? '');
+  const [dueDate, setDueDate] = useState(card?.dueDate ?? '');
   const [columnId, setColumnId] = useState(currentColumnId);
 
   const handleEscape = useCallback((e: KeyboardEvent) => {
@@ -87,6 +88,7 @@ export function CardModal({
       completed: card?.completed,
       acknowledged: card?.acknowledged,
       ...(client.trim() ? { client: client.trim() } : {}),
+      ...(dueDate ? { dueDate } : {}),
     };
 
     onSave(updatedCard, columnId);
@@ -112,6 +114,7 @@ export function CardModal({
       setTags(card?.tags?.join(', ') ?? '');
       setNotes(card?.notes ?? '');
       setClient(card?.client ?? '');
+      setDueDate(card?.dueDate ?? '');
       setColumnId(currentColumnId);
       setIsEditing(false);
     }
@@ -202,6 +205,17 @@ export function CardModal({
                 </div>
               </div>
 
+              {/* Due Date */}
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1">Due Date</label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full bg-surface-raised border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+                />
+              </div>
+
               {/* Client */}
               <div>
                 <label className="block text-xs font-medium text-text-muted mb-1">Client</label>
@@ -281,6 +295,15 @@ export function CardModal({
                 <div className="text-sm">
                   <span className="text-text-muted">Client:</span>
                   <span className="ml-2 px-2 py-0.5 rounded text-xs bg-cyan-500/20 text-cyan-400">{card.client}</span>
+                </div>
+              )}
+
+              {card?.dueDate && (
+                <div className="text-sm">
+                  <span className="text-text-muted">Due:</span>
+                  <span className={`ml-2 ${new Date(card.dueDate + 'T23:59:59') < new Date() ? 'text-red-400' : 'text-foreground'}`}>
+                    {new Date(card.dueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
                 </div>
               )}
 
