@@ -1,6 +1,6 @@
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { GoalsSummary } from '@/components/goals/GoalsSummary';
-import { DropBox } from '@/components/notes/DropBox';
+import { UniversalInbox } from '@/components/notes/UniversalInbox';
 import { PageHeader } from '@/components/layout/PageHeader';
 
 function getDateString(): string {
@@ -19,10 +19,10 @@ export function Home(): React.ReactElement {
         date={getDateString()}
       />
 
-      {/* Top row: Goals Summary + Drop Box */}
+      {/* Top row: Goals Summary + Universal Inbox */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
         <GoalsSummary />
-        <DropBox />
+        <UniversalInbox />
       </div>
 
       {/* Kanban Board */}

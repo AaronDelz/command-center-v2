@@ -243,3 +243,25 @@ export interface TimeEntriesData {
   };
   lastUpdated: string;
 }
+
+// Drop Types
+
+export type DropType = 'note' | 'idea' | 'link' | 'task' | 'file' | 'unsorted';
+export type DropStatus = 'new' | 'triaged' | 'promoted' | 'archived';
+
+export interface Drop {
+  id: string;
+  type: DropType;
+  content: string;
+  url?: string;
+  files?: string[];
+  status: DropStatus;
+  promotedTo?: string; // Kanban card ID if promoted to task
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface DropsData {
+  drops: Drop[];
+  lastUpdated: string;
+}

@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs';
-import type { KanbanData, NotesData, Note, ReportsData, GoalsData, ClientsData, TimeEntriesData } from './types';
+import type { KanbanData, NotesData, Note, ReportsData, GoalsData, ClientsData, TimeEntriesData, DropsData } from './types';
 
 const DATA_DIR = '/Users/Orion/Documents/projects/command-center-v2/data';
 const KANBAN_PATH = `${DATA_DIR}/kanban.json`;
@@ -8,6 +8,7 @@ const REPORTS_PATH = `${DATA_DIR}/reports.json`;
 const GOALS_PATH = `${DATA_DIR}/goals.json`;
 const CLIENTS_PATH = `${DATA_DIR}/clients.json`;
 const TIME_ENTRIES_PATH = `${DATA_DIR}/time-entries.json`;
+const DROPS_PATH = `${DATA_DIR}/drops.json`;
 const CLAWD_DIR = '/Users/Orion/clawd';
 
 export async function readKanbanData(): Promise<KanbanData> {
@@ -244,5 +245,36 @@ export async function writeTimeEntriesData(data: TimeEntriesData): Promise<void>
   } catch (error) {
     console.error('Error writing time-entries.json:', error);
     throw new Error('Failed to write time entries data');
+  }
+}
+
+// Drops Data Functions
+
+export async function readDropsData(): Promise<DropsData> {
+  try {
+    const content = await fs.readFile(DROPS_PATH, 'utf-8');
+    return JSON.parse(content) as DropsData;
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      // File doesn't exist, create initial structure
+      const initialData: DropsData = {
+        drops: [],
+        lastUpdated: new Date().toISOString(),
+      };
+      await writeDropsData(initialData);
+      return initialData;
+    }
+    console.error('Error reading drops.json:', error);
+    throw new Error('Failed to read drops data');
+  }
+}
+
+export async function writeDropsData(data: DropsData): Promise<void> {
+  try {
+    const content = JSON.stringify(data, null, 2);
+    await fs.writeFile(DROPS_PATH, content, 'utf-8');
+  } catch (error) {
+    console.error('Error writing drops.json:', error);
+    throw new Error('Failed to write drops data');
   }
 }

@@ -5,6 +5,7 @@ import { AmbientBackground } from "@/components/ui/AmbientBackground";
 import { EmberParticles } from "@/components/ui/EmberParticles";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { FloatingDropButton } from "@/components/notes/FloatingDropButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,6 +54,7 @@ export function RootLayout({
         >
           {children}
         </main>
+        <FloatingDropButton />
         <MobileNav />
       </body>
     </html>
