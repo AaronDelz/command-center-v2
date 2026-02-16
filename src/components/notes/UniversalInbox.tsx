@@ -28,6 +28,7 @@ export function UniversalInbox({ className = '' }: UniversalInboxProps): React.R
   const [isDragging, setIsDragging] = useState(false);
   const [recentDrops, setRecentDrops] = useState<Drop[]>([]);
   const [expandedDrop, setExpandedDrop] = useState<string | null>(null);
+  const [showRecent, setShowRecent] = useState(false);
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   
@@ -269,11 +270,11 @@ export function UniversalInbox({ className = '' }: UniversalInboxProps): React.R
                     ? 'Drop files or describe them...'
                     : 'Drop anything...'
                 }
-                rows={1}
+                rows={3}
                 style={{
                   width: '100%',
-                  minHeight: '44px',
-                  maxHeight: '120px',
+                  minHeight: '80px',
+                  maxHeight: '200px',
                   padding: '12px 16px',
                   background: color.bg.surface,
                   border: `1.5px solid ${color.glass.border}`,
@@ -397,11 +398,30 @@ export function UniversalInbox({ className = '' }: UniversalInboxProps): React.R
           </div>
         </div>
 
-        {/* Recent Drops */}
+        {/* Recent Drops — collapsed by default */}
         {recentDrops.length > 0 && (
           <div className="space-y-3">
-            <SectionHeading size="sm">Recent Drops</SectionHeading>
-            <div className="space-y-2">
+            <button
+              onClick={() => setShowRecent(!showRecent)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: color.text.dim,
+                fontSize: typography.fontSize.caption,
+                cursor: 'pointer',
+                padding: '4px 0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: `color ${animation.duration.fast}`,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = color.text.secondary; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = color.text.dim; }}
+            >
+              <span style={{ transform: showRecent ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', display: 'inline-block' }}>▶</span>
+              Recent Drops ({recentDrops.length})
+            </button>
+            {showRecent && <div className="space-y-2">
               {recentDrops.map((drop) => {
                 const typeData = DROP_TYPES.find(t => t.key === drop.type);
                 const isExpanded = expandedDrop === drop.id;
@@ -450,7 +470,7 @@ export function UniversalInbox({ className = '' }: UniversalInboxProps): React.R
                   </div>
                 );
               })}
-            </div>
+            </div>}
           </div>
         )}
 

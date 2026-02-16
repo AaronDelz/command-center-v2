@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { existsSync } from 'fs';
+
+// Files go to Documents/inbox/ for Orion to triage
+const INBOX_DIR = path.join(process.env.HOME || '/Users/Orion', 'Documents', 'inbox');
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -14,27 +18,36 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // Ensure inbox directory exists
+    if (!existsSync(INBOX_DIR)) {
+      await mkdir(INBOX_DIR, { recursive: true });
+    }
+
     const uploadedFiles: string[] = [];
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
 
     for (const file of files) {
       if (file.size === 0) continue;
 
-      // Generate unique filename
-      const timestamp = Date.now();
-      const randomSuffix = Math.random().toString(36).substring(2, 8);
-      const fileName = `${timestamp}-${randomSuffix}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      // Keep original filename — add timestamp prefix only if file already exists
+      let fileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const filePath = path.join(INBOX_DIR, fileName);
       
+      if (existsSync(filePath)) {
+        const timestamp = Date.now();
+        const ext = path.extname(fileName);
+        const base = path.basename(fileName, ext);
+        fileName = `${base}-${timestamp}${ext}`;
+      }
+
       // Read file as buffer
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      // Write file to uploads directory
-      const filePath = path.join(uploadsDir, fileName);
-      await writeFile(filePath, buffer);
+      // Write file to inbox
+      await writeFile(path.join(INBOX_DIR, fileName), buffer);
 
-      // Store relative path for the drop
-      uploadedFiles.push(`/uploads/${fileName}`);
+      // Store the inbox path for reference
+      uploadedFiles.push(`~/Documents/inbox/${fileName}`);
     }
 
     return NextResponse.json({ files: uploadedFiles });

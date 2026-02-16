@@ -1,6 +1,16 @@
 {
   "drops": [
     {
+      "id": "drop-1771274616669",
+      "type": "file",
+      "content": "File upload",
+      "status": "new",
+      "createdAt": "2026-02-16T20:43:36.669Z",
+      "files": [
+        "/uploads/1771274616638-tueb22-Navy_Diver_Pin.png"
+      ]
+    },
+    {
       "id": "drop-1771273970900",
       "type": "note",
       "content": "Test drop from API",
@@ -8,5 +18,5 @@
       "createdAt": "2026-02-16T20:32:50.900Z"
     }
   ],
-  "lastUpdated": "2026-02-16T20:32:50.900Z"
+  "lastUpdated": "2026-02-16T20:43:36.669Z"
 }
