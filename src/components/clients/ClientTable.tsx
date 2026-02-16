@@ -384,46 +384,43 @@ function ExpandedDetails({
                   <div>
                     {timeEntries.slice(0, 5).map((entry, index) => {
                       const { dateStr, timeRange, duration } = formatTimeEntry(entry);
+                      const hasRealDescription = entry.description && entry.description !== 'Quick timer session';
                       return (
                         <div
                           key={entry.id}
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: '100px 1fr auto',
+                            gridTemplateColumns: '240px auto 80px',
                             gap: '12px',
-                            alignItems: 'start',
+                            alignItems: 'center',
+                            maxWidth: '700px',
                             padding: '10px 0',
                             borderBottom: index < Math.min(timeEntries.length, 5) - 1 
                               ? `1px solid ${color.glass.border}` 
                               : 'none',
                           }}
                         >
-                          {/* Date + Time Range */}
-                          <div>
-                            <div style={{
-                              fontSize: typography.fontSize.caption,
-                              color: color.text.primary,
-                              fontWeight: typography.fontWeight.semibold,
-                            }}>
+                          {/* Date + Time Range — single line */}
+                          <div style={{
+                            fontSize: typography.fontSize.caption,
+                            color: color.text.primary,
+                          }}>
+                            <span style={{ fontWeight: typography.fontWeight.semibold }}>
                               {dateStr}
-                            </div>
-                            <div style={{
-                              fontSize: typography.fontSize.metadata,
-                              color: color.text.dim,
-                              marginTop: '2px',
-                            }}>
+                            </span>
+                            <span style={{ color: color.text.dim, marginLeft: '8px' }}>
                               {timeRange}
-                            </div>
+                            </span>
                           </div>
                           
                           {/* Description / Notes */}
                           <div style={{
                             fontSize: typography.fontSize.caption,
-                            color: color.text.secondary,
+                            color: hasRealDescription ? color.text.secondary : color.text.dim,
+                            fontStyle: hasRealDescription ? 'normal' : 'italic',
                             lineHeight: typography.lineHeight.relaxed,
-                            paddingTop: '1px',
                           }}>
-                            {entry.description || '—'}
+                            {hasRealDescription ? entry.description : 'No notes'}
                             {entry.isRunning && (
                               <span style={{
                                 marginLeft: '8px',
@@ -439,14 +436,13 @@ function ExpandedDetails({
                             )}
                           </div>
                           
-                          {/* Duration — aligned right */}
+                          {/* Duration — positioned left, not far right */}
                           <div style={{
                             fontSize: typography.fontSize.caption,
-                            color: color.text.accent,
+                            color: duration === '—' ? color.text.dim : color.text.accent,
                             fontWeight: typography.fontWeight.semibold,
                             fontFamily: typography.fontFamily.mono,
-                            textAlign: 'right',
-                            minWidth: '70px',
+                            textAlign: 'left',
                           }}>
                             {duration}
                           </div>
