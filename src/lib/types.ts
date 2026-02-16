@@ -170,3 +170,76 @@ export interface GoalsData {
   goals: Goal[];
   lastUpdated: string;
 }
+
+// Client Types
+
+export type ClientStatus = 'active' | 'pipeline' | 'paused' | 'completed';
+export type PaymentStatus = 'pending' | 'sent' | 'received';
+
+export interface Client {
+  id: string;
+  name: string;
+  contact: string;
+  business: string;
+  status: ClientStatus;
+  rate: string;
+  revenueModel: 'hourly' | 'project' | 'retainer';
+  avgMonthly?: number;
+  projectValue?: number;
+  monthlyRetainer?: number;
+  since: string;
+  lastActivity: string;
+  tags: string[];
+  notes: string;
+  link?: string;
+  dueDate?: string;
+  paymentStatus: PaymentStatus;
+  hourlyRate: number; // Numeric hourly rate for calculations
+  monthlyTotal?: number; // Total dollar amount billed/earned this month
+}
+
+export interface ClientsData {
+  clients: Client[];
+  lastUpdated: string;
+}
+
+// Time Tracking Types
+
+export interface TimeEntry {
+  id: string;
+  clientId: string;
+  clientName: string;
+  description: string;
+  startTime: string;  // ISO 8601
+  endTime?: string;   // undefined when timer is running
+  duration?: number;  // minutes, calculated when ended
+  isRunning: boolean;
+  tags: string[];
+  billable: boolean;
+  rate?: number;      // hourly rate for this entry
+  createdAt: string;
+  updatedAt?: string;
+  notes?: string;     // Optional notes for the time entry
+}
+
+export interface TimeTrackingSummary {
+  totalMinutes: number;
+  billableMinutes: number;
+  totalValue: number;
+  entriesCount: number;
+}
+
+export interface ClientTimeStats extends TimeTrackingSummary {
+  clientId: string;
+  clientName: string;
+  lastEntry?: string;
+}
+
+export interface TimeEntriesData {
+  entries: TimeEntry[];
+  activeTimer?: {
+    entryId: string;
+    startedAt: string;
+  };
+  lastUpdated: string;
+}

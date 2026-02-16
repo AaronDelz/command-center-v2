@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ClientTable } from '@/components/clients/ClientTable';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { QuickTimeWidget } from '@/components/time/QuickTimeWidget';
 import { color, typography, radius, animation, shadow } from '@/styles/tokens';
-import type { Client, ClientStatus, ClientsData } from '@/lib/types';
+import type { Client, ClientStatus, ClientsData, PaymentStatus } from '@/lib/types';
 
 // ─── Add Client Modal ───────────────────────────────────────────
 
@@ -22,6 +23,9 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (clien
     monthlyRetainer: 0,
     notes: '',
     tags: '',
+    hourlyRate: 100,
+    paymentStatus: 'pending' as PaymentStatus,
+    monthlyTotal: 0,
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -42,6 +46,9 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (clien
       lastActivity: new Date().toISOString().split('T')[0],
       tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : [],
       notes: form.notes.trim(),
+      paymentStatus: form.paymentStatus,
+      hourlyRate: form.hourlyRate,
+      monthlyTotal: form.monthlyTotal,
     };
     onAdd(newClient);
   }
@@ -201,6 +208,41 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (clien
                 style={inputStyle}
                 value={form.monthlyRetainer || ''}
                 onChange={(e) => setForm({ ...form, monthlyRetainer: Number(e.target.value) })}
+                placeholder="0"
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+            <div>
+              <label style={labelStyle}>Hourly Rate ($)</label>
+              <input
+                type="number"
+                style={inputStyle}
+                value={form.hourlyRate || ''}
+                onChange={(e) => setForm({ ...form, hourlyRate: Number(e.target.value) })}
+                placeholder="100"
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Payment Status</label>
+              <select
+                style={{ ...inputStyle, cursor: 'pointer' }}
+                value={form.paymentStatus}
+                onChange={(e) => setForm({ ...form, paymentStatus: e.target.value as PaymentStatus })}
+              >
+                <option value="pending">Pending</option>
+                <option value="sent">Sent for Payment</option>
+                <option value="received">Received</option>
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Monthly Total ($)</label>
+              <input
+                type="number"
+                style={inputStyle}
+                value={form.monthlyTotal || ''}
+                onChange={(e) => setForm({ ...form, monthlyTotal: Number(e.target.value) })}
                 placeholder="0"
               />
             </div>
@@ -407,6 +449,14 @@ export default function ClientsPage(): React.ReactElement {
             </div>
           </GlassCard>
         ))}
+      </div>
+
+      {/* Quick Time Tracking Widget */}
+      <div style={{ marginBottom: '20px' }}>
+        <QuickTimeWidget 
+          clients={clients} 
+          onNavigateToTimeForge={() => window.location.href = '/time'}
+        />
       </div>
 
       {/* Filters */}

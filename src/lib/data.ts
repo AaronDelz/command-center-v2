@@ -1,11 +1,13 @@
 import { promises as fs } from 'fs';
-import type { KanbanData, NotesData, Note, ReportsData, GoalsData } from './types';
+import type { KanbanData, NotesData, Note, ReportsData, GoalsData, ClientsData, TimeEntriesData } from './types';
 
 const DATA_DIR = '/Users/Orion/Documents/projects/command-center-v2/data';
 const KANBAN_PATH = `${DATA_DIR}/kanban.json`;
 const NOTES_PATH = `${DATA_DIR}/notes.json`;
 const REPORTS_PATH = `${DATA_DIR}/reports.json`;
 const GOALS_PATH = `${DATA_DIR}/goals.json`;
+const CLIENTS_PATH = `${DATA_DIR}/clients.json`;
+const TIME_ENTRIES_PATH = `${DATA_DIR}/time-entries.json`;
 const CLAWD_DIR = '/Users/Orion/clawd';
 
 export async function readKanbanData(): Promise<KanbanData> {
@@ -189,5 +191,58 @@ export async function writeGoalsData(data: GoalsData): Promise<void> {
   } catch (error) {
     console.error('Error writing goals.json:', error);
     throw new Error('Failed to write goals data');
+  }
+}
+
+// Clients Data Functions
+
+export async function readClientsData(): Promise<ClientsData> {
+  try {
+    const content = await fs.readFile(CLIENTS_PATH, 'utf-8');
+    return JSON.parse(content) as ClientsData;
+  } catch (error) {
+    console.error('Error reading clients.json:', error);
+    throw new Error('Failed to read clients data');
+  }
+}
+
+export async function writeClientsData(data: ClientsData): Promise<void> {
+  try {
+    const content = JSON.stringify(data, null, 2);
+    await fs.writeFile(CLIENTS_PATH, content, 'utf-8');
+  } catch (error) {
+    console.error('Error writing clients.json:', error);
+    throw new Error('Failed to write clients data');
+  }
+}
+
+// Time Entries Data Functions
+
+export async function readTimeEntriesData(): Promise<TimeEntriesData> {
+  try {
+    const content = await fs.readFile(TIME_ENTRIES_PATH, 'utf-8');
+    return JSON.parse(content) as TimeEntriesData;
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      // File doesn't exist, create initial structure
+      const initialData: TimeEntriesData = {
+        entries: [],
+        lastUpdated: new Date().toISOString(),
+      };
+      await writeTimeEntriesData(initialData);
+      return initialData;
+    }
+    console.error('Error reading time-entries.json:', error);
+    throw new Error('Failed to read time entries data');
+  }
+}
+
+export async function writeTimeEntriesData(data: TimeEntriesData): Promise<void> {
+  try {
+    const content = JSON.stringify(data, null, 2);
+    await fs.writeFile(TIME_ENTRIES_PATH, content, 'utf-8');
+  } catch (error) {
+    console.error('Error writing time-entries.json:', error);
+    throw new Error('Failed to write time entries data');
   }
 }
