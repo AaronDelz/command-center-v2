@@ -390,10 +390,10 @@ function ExpandedDetails({
                           key={entry.id}
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: '240px auto 80px',
+                            gridTemplateColumns: '240px 1fr 80px',
                             gap: '12px',
                             alignItems: 'center',
-                            maxWidth: '700px',
+                            maxWidth: '850px',
                             padding: '10px 0',
                             borderBottom: index < Math.min(timeEntries.length, 5) - 1 
                               ? `1px solid ${color.glass.border}` 
