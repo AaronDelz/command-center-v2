@@ -89,7 +89,7 @@ export function MonthlyBilling({ entries }: MonthlyBillingProps): React.ReactEle
   return (
     <GlassCard>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <SectionHeading>Monthly Billing</SectionHeading>
+        <SectionHeading title="Monthly Billing" />
         <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           <GlassPill
             size="xs"
