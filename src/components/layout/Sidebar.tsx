@@ -31,12 +31,14 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Content Hub', href: '/content', icon: '📱' },
       { label: 'Client Command', href: '/clients', icon: '👥', badge: 3 },
+      { label: 'Time Forge', href: '/time', icon: '⏱️' },
     ],
   },
   {
     label: 'GROWTH',
     items: [
       { label: 'The Helm', href: '/helm', icon: '🎯' },
+      { label: 'Notes', href: '/notes', icon: '📝' },
     ],
   },
   {

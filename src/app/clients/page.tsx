@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ClientTable } from '@/components/clients/ClientTable';
-import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassCard, GlassModal, GlassInput, GlassSelect, GlassPill, EmberButton } from '@/components/ui';
 import { QuickTimeWidget } from '@/components/time/QuickTimeWidget';
-import { color, typography, radius, animation, shadow } from '@/styles/tokens';
+import { color, typography, radius } from '@/styles/tokens';
 import type { Client, ClientStatus, ClientsData, PaymentStatus } from '@/lib/types';
 
 // ─── Add Client Modal ───────────────────────────────────────────
@@ -53,257 +53,177 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (clien
     onAdd(newClient);
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '8px 12px',
-    background: color.bg.surface,
-    border: `1px solid ${color.glass.border}`,
-    borderRadius: radius.sm,
-    color: color.text.primary,
-    fontSize: typography.fontSize.body,
-    fontFamily: 'inherit',
-    outline: 'none',
-  };
+  const statusOptions = [
+    { value: 'pipeline', label: 'Pipeline' },
+    { value: 'active', label: 'Active' },
+    { value: 'paused', label: 'Paused' },
+    { value: 'completed', label: 'Completed' },
+  ];
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: typography.fontSize.caption,
-    color: color.text.secondary,
-    marginBottom: '4px',
-    display: 'block',
-  };
+  const modelOptions = [
+    { value: 'hourly', label: 'Hourly' },
+    { value: 'project', label: 'Project' },
+    { value: 'retainer', label: 'Retainer' },
+  ];
+
+  const paymentOptions = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'sent', label: 'Sent for Payment' },
+    { value: 'received', label: 'Received' },
+  ];
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.6)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 50,
-        backdropFilter: 'blur(4px)',
-      }}
+    <GlassModal
+      open={true}
+      onClose={onClose}
+      title="Add Client"
+      width="lg"
+      footer={
+        <div className="flex gap-2">
+          <EmberButton variant="ghost" size="sm" onClick={onClose}>Cancel</EmberButton>
+          <EmberButton variant="primary" size="sm" onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}>
+            Add Client
+          </EmberButton>
+        </div>
+      }
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: color.bg.base,
-          border: `1.5px solid ${color.glass.border}`,
-          borderRadius: radius['2xl'],
-          boxShadow: shadow.modal,
-          padding: '28px',
-          width: '480px',
-          maxWidth: '90vw',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-        }}
-      >
-        <h3 style={{
-          fontSize: typography.fontSize.pageTitle,
-          fontWeight: typography.fontWeight.semibold,
-          color: color.text.primary,
-          marginBottom: '20px',
-          marginTop: 0,
-        }}>
-          Add Client
-        </h3>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <GlassInput
+            label="Name"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="Client name"
+            size="sm"
+            autoFocus
+          />
+          <GlassInput
+            label="Contact"
+            value={form.contact}
+            onChange={(e) => setForm({ ...form, contact: e.target.value })}
+            placeholder="Primary contact"
+            size="sm"
+          />
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div>
-              <label style={labelStyle}>Name *</label>
-              <input
-                style={inputStyle}
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Client name"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Contact</label>
-              <input
-                style={inputStyle}
-                value={form.contact}
-                onChange={(e) => setForm({ ...form, contact: e.target.value })}
-                placeholder="Primary contact"
-              />
-            </div>
-          </div>
+        <GlassInput
+          label="Business"
+          value={form.business}
+          onChange={(e) => setForm({ ...form, business: e.target.value })}
+          placeholder="What they do"
+          size="sm"
+        />
 
-          <div style={{ marginBottom: '12px' }}>
-            <label style={labelStyle}>Business</label>
-            <input
-              style={inputStyle}
-              value={form.business}
-              onChange={(e) => setForm({ ...form, business: e.target.value })}
-              placeholder="What they do"
-            />
-          </div>
+        <div className="grid grid-cols-3 gap-3">
+          <GlassSelect
+            label="Status"
+            value={form.status}
+            onChange={(e) => setForm({ ...form, status: e.target.value as ClientStatus })}
+            options={statusOptions}
+            size="sm"
+          />
+          <GlassInput
+            label="Rate"
+            value={form.rate}
+            onChange={(e) => setForm({ ...form, rate: e.target.value })}
+            placeholder="$100/hr"
+            size="sm"
+          />
+          <GlassSelect
+            label="Model"
+            value={form.revenueModel}
+            onChange={(e) => setForm({ ...form, revenueModel: e.target.value as 'hourly' | 'project' | 'retainer' })}
+            options={modelOptions}
+            size="sm"
+          />
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div>
-              <label style={labelStyle}>Status</label>
-              <select
-                style={{ ...inputStyle, cursor: 'pointer' }}
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as ClientStatus })}
-              >
-                <option value="pipeline">Pipeline</option>
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
-                <option value="completed">Completed</option>
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Rate</label>
-              <input
-                style={inputStyle}
-                value={form.rate}
-                onChange={(e) => setForm({ ...form, rate: e.target.value })}
-                placeholder="$100/hr"
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Model</label>
-              <select
-                style={{ ...inputStyle, cursor: 'pointer' }}
-                value={form.revenueModel}
-                onChange={(e) => setForm({ ...form, revenueModel: e.target.value as 'hourly' | 'project' | 'retainer' })}
-              >
-                <option value="hourly">Hourly</option>
-                <option value="project">Project</option>
-                <option value="retainer">Retainer</option>
-              </select>
-            </div>
-          </div>
+        <div className="grid grid-cols-3 gap-3">
+          <GlassInput
+            label="Avg Monthly ($)"
+            type="number"
+            value={form.avgMonthly || ''}
+            onChange={(e) => setForm({ ...form, avgMonthly: Number(e.target.value) })}
+            placeholder="0"
+            size="sm"
+          />
+          <GlassInput
+            label="Project Value ($)"
+            type="number"
+            value={form.projectValue || ''}
+            onChange={(e) => setForm({ ...form, projectValue: Number(e.target.value) })}
+            placeholder="0"
+            size="sm"
+          />
+          <GlassInput
+            label="Retainer ($)"
+            type="number"
+            value={form.monthlyRetainer || ''}
+            onChange={(e) => setForm({ ...form, monthlyRetainer: Number(e.target.value) })}
+            placeholder="0"
+            size="sm"
+          />
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div>
-              <label style={labelStyle}>Avg Monthly ($)</label>
-              <input
-                type="number"
-                style={inputStyle}
-                value={form.avgMonthly || ''}
-                onChange={(e) => setForm({ ...form, avgMonthly: Number(e.target.value) })}
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Project Value ($)</label>
-              <input
-                type="number"
-                style={inputStyle}
-                value={form.projectValue || ''}
-                onChange={(e) => setForm({ ...form, projectValue: Number(e.target.value) })}
-                placeholder="0"
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Retainer ($)</label>
-              <input
-                type="number"
-                style={inputStyle}
-                value={form.monthlyRetainer || ''}
-                onChange={(e) => setForm({ ...form, monthlyRetainer: Number(e.target.value) })}
-                placeholder="0"
-              />
-            </div>
-          </div>
+        <div className="grid grid-cols-3 gap-3">
+          <GlassInput
+            label="Hourly Rate ($)"
+            type="number"
+            value={form.hourlyRate || ''}
+            onChange={(e) => setForm({ ...form, hourlyRate: Number(e.target.value) })}
+            placeholder="100"
+            size="sm"
+          />
+          <GlassSelect
+            label="Payment Status"
+            value={form.paymentStatus}
+            onChange={(e) => setForm({ ...form, paymentStatus: e.target.value as PaymentStatus })}
+            options={paymentOptions}
+            size="sm"
+          />
+          <GlassInput
+            label="Monthly Total ($)"
+            type="number"
+            value={form.monthlyTotal || ''}
+            onChange={(e) => setForm({ ...form, monthlyTotal: Number(e.target.value) })}
+            placeholder="0"
+            size="sm"
+          />
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-            <div>
-              <label style={labelStyle}>Hourly Rate ($)</label>
-              <input
-                type="number"
-                style={inputStyle}
-                value={form.hourlyRate || ''}
-                onChange={(e) => setForm({ ...form, hourlyRate: Number(e.target.value) })}
-                placeholder="100"
-              />
-            </div>
-            <div>
-              <label style={labelStyle}>Payment Status</label>
-              <select
-                style={{ ...inputStyle, cursor: 'pointer' }}
-                value={form.paymentStatus}
-                onChange={(e) => setForm({ ...form, paymentStatus: e.target.value as PaymentStatus })}
-              >
-                <option value="pending">Pending</option>
-                <option value="sent">Sent for Payment</option>
-                <option value="received">Received</option>
-              </select>
-            </div>
-            <div>
-              <label style={labelStyle}>Monthly Total ($)</label>
-              <input
-                type="number"
-                style={inputStyle}
-                value={form.monthlyTotal || ''}
-                onChange={(e) => setForm({ ...form, monthlyTotal: Number(e.target.value) })}
-                placeholder="0"
-              />
-            </div>
-          </div>
+        <GlassInput
+          label="Tags (comma separated)"
+          value={form.tags}
+          onChange={(e) => setForm({ ...form, tags: e.target.value })}
+          placeholder="highlevel, make, openai"
+          size="sm"
+        />
 
-          <div style={{ marginBottom: '12px' }}>
-            <label style={labelStyle}>Tags (comma separated)</label>
-            <input
-              style={inputStyle}
-              value={form.tags}
-              onChange={(e) => setForm({ ...form, tags: e.target.value })}
-              placeholder="highlevel, make, openai"
-            />
-          </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={labelStyle}>Notes</label>
-            <textarea
-              style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' }}
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="Initial notes..."
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: '8px 18px',
-                background: 'none',
-                border: `1px solid ${color.glass.border}`,
-                borderRadius: radius.md,
-                color: color.text.secondary,
-                cursor: 'pointer',
-                fontSize: typography.fontSize.body,
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              style={{
-                padding: '8px 18px',
-                background: color.ember.DEFAULT,
-                border: 'none',
-                borderRadius: radius.md,
-                color: color.text.inverse,
-                cursor: 'pointer',
-                fontWeight: typography.fontWeight.semibold,
-                fontSize: typography.fontSize.body,
-                boxShadow: `0 0 12px rgba(255, 107, 53, 0.3)`,
-              }}
-            >
-              Add Client
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={{ fontSize: '0.7rem', fontWeight: 500, color: color.text.secondary, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            Notes
+          </label>
+          <textarea
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            placeholder="Initial notes..."
+            style={{
+              width: '100%',
+              minHeight: '60px',
+              background: color.bg.surface,
+              border: `1.5px solid ${color.glass.border}`,
+              borderRadius: radius.lg,
+              color: color.text.primary,
+              padding: '8px 12px',
+              fontSize: '0.8rem',
+              resize: 'vertical',
+              outline: 'none',
+              fontFamily: 'inherit',
+            }}
+          />
+        </div>
+      </form>
+    </GlassModal>
   );
 }
 
@@ -401,30 +321,13 @@ export default function ClientsPage(): React.ReactElement {
         title="Client Command"
         subtitle="Your client roster — relationships, revenue, results"
         actions={
-          <button
-            onClick={() => setShowAddModal(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 16px',
-              background: color.ember.DEFAULT,
-              border: 'none',
-              borderRadius: radius.md,
-              color: color.text.inverse,
-              cursor: 'pointer',
-              fontWeight: typography.fontWeight.semibold,
-              fontSize: typography.fontSize.caption,
-              boxShadow: `0 0 12px rgba(255, 107, 53, 0.25)`,
-              transition: `all ${animation.duration.normal}`,
-            }}
-          >
+          <EmberButton variant="primary" size="sm" onClick={() => setShowAddModal(true)}>
             + Add Client
-          </button>
+          </EmberButton>
         }
       />
 
-      {/* Summary Stats — Centered */}
+      {/* Summary Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
         {stats.map((stat) => (
           <GlassCard key={stat.label} padding="sm" hover={false}>
@@ -453,41 +356,30 @@ export default function ClientsPage(): React.ReactElement {
 
       {/* Quick Time Tracking Widget */}
       <div style={{ marginBottom: '20px' }}>
-        <QuickTimeWidget 
-          clients={clients} 
+        <QuickTimeWidget
+          clients={clients}
           onNavigateToTimeForge={() => window.location.href = '/time'}
         />
       </div>
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {STATUS_FILTERS.map((f) => {
-          const isActive = filter === f.key;
-          return (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              style={{
-                fontSize: typography.fontSize.caption,
-                fontWeight: isActive ? typography.fontWeight.semibold : typography.fontWeight.regular,
-                color: isActive ? color.text.primary : color.text.secondary,
-                background: isActive ? color.bg.overlay : 'transparent',
-                border: `1px solid ${isActive ? color.glass.borderHover : color.glass.border}`,
-                borderRadius: radius.full,
-                padding: '5px 14px',
-                cursor: 'pointer',
-                transition: `all ${animation.duration.normal}`,
-              }}
-            >
-              {f.label}
-              {f.key !== 'all' && (
-                <span style={{ marginLeft: '4px', opacity: 0.6 }}>
-                  {clients.filter((c) => c.status === f.key).length}
-                </span>
-              )}
-            </button>
-          );
-        })}
+        {STATUS_FILTERS.map((f) => (
+          <GlassPill
+            key={f.key}
+            variant="default"
+            size="sm"
+            active={filter === f.key}
+            onClick={() => setFilter(f.key)}
+          >
+            {f.label}
+            {f.key !== 'all' && (
+              <span style={{ marginLeft: '4px', opacity: 0.6 }}>
+                {clients.filter((c) => c.status === f.key).length}
+              </span>
+            )}
+          </GlassPill>
+        ))}
       </div>
 
       {/* Client Table */}

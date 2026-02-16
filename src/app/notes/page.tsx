@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NotesList } from '@/components/notes/NotesList';
 import { NoteModal } from '@/components/notes/NoteModal';
+import { SectionHeading, GlassPill, EmberButton } from '@/components/ui';
 import type { Note } from '@/lib/types';
 
 export default function NotesPage(): React.ReactElement {
@@ -37,9 +38,7 @@ export default function NotesPage(): React.ReactElement {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, ...(tags ? { tags } : {}) }),
     });
-
     if (!res.ok) throw new Error('Failed to create note');
-    
     const newNote = await res.json() as Note;
     setNotes((prev) => [newNote, ...prev]);
   }
@@ -50,14 +49,8 @@ export default function NotesPage(): React.ReactElement {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, done }),
     });
-
     if (!res.ok) throw new Error('Failed to update note');
-
-    setNotes((prev) =>
-      prev.map((note) =>
-        note.id === id ? { ...note, done } : note
-      )
-    );
+    setNotes((prev) => prev.map((note) => note.id === id ? { ...note, done } : note));
   }
 
   async function handleAddReply(noteId: string, text: string): Promise<void> {
@@ -66,7 +59,6 @@ export default function NotesPage(): React.ReactElement {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: noteId, action: 'addReply', reply: { from: 'aaron', text } }),
     });
-
     if (!res.ok) throw new Error('Failed to add reply');
     await fetchNotes();
   }
@@ -77,7 +69,6 @@ export default function NotesPage(): React.ReactElement {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: noteId, action: 'editNote', text }),
     });
-
     if (!res.ok) throw new Error('Failed to edit note');
     await fetchNotes();
   }
@@ -110,7 +101,6 @@ export default function NotesPage(): React.ReactElement {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: noteId, action: 'editReply', replyIndex, text }),
     });
-
     if (!res.ok) throw new Error('Failed to edit reply');
     await fetchNotes();
   }
@@ -134,40 +124,24 @@ export default function NotesPage(): React.ReactElement {
     }
   });
 
+  const subtitle = `${notes.length} note${notes.length !== 1 ? 's' : ''}${notes.filter((n) => n.done).length > 0 ? ` • ${notes.filter((n) => n.done).length} done` : ''}`;
+
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 md:mb-8 gap-4">
-        <div className="min-w-0">
-          <h1 className="text-xl md:text-2xl font-semibold text-foreground">
-            Quick Notes
-          </h1>
-          <p className="text-text-muted mt-1 text-sm">
-            {notes.length} note{notes.length !== 1 ? 's' : ''}
-            {notes.filter((n) => n.done).length > 0 && (
-              <span className="ml-2">
-                • {notes.filter((n) => n.done).length} done
-              </span>
-            )}
-          </p>
-        </div>
+      <SectionHeading
+        title="Quick Notes"
+        icon={<span>📝</span>}
+        badge={subtitle}
+        action={
+          <EmberButton variant="primary" size="sm" onClick={() => setIsModalOpen(true)}>
+            <span className="text-lg">+</span>
+            <span className="hidden sm:inline">Add Note</span>
+          </EmberButton>
+        }
+      />
 
-        <div className="flex items-center gap-2 flex-shrink-0">
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="
-            px-4 py-2.5 min-h-[44px] rounded-lg bg-accent text-background font-medium
-            hover:bg-accent-dim active:scale-95 transition-all duration-200
-            flex items-center gap-2 flex-shrink-0
-          "
-        >
-          <span className="text-lg">+</span>
-          <span className="hidden sm:inline">Add Note</span>
-        </button>
-        </div>
-      </div>
-
-      {/* Filter Buttons */}
+      {/* Filter Pills */}
       <div className="flex items-center gap-2 mb-4 flex-wrap">
         {([
           { key: 'all', label: 'All' },
@@ -175,16 +149,12 @@ export default function NotesPage(): React.ReactElement {
           { key: 'active', label: 'Active' },
           { key: 'done', label: 'Done' },
         ] as const).map(({ key, label }) => (
-          <button
+          <GlassPill
             key={key}
+            variant={key === 'discuss' ? 'ember' : 'default'}
+            size="sm"
+            active={filter === key}
             onClick={() => setFilter(key)}
-            className={`
-              px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border
-              ${filter === key
-                ? 'bg-accent/15 border-accent/40 text-accent'
-                : 'bg-surface-raised/40 border-border text-text-muted hover:border-accent/30 hover:text-foreground'
-              }
-            `}
           >
             {label}
             {key === 'discuss' && (
@@ -192,7 +162,7 @@ export default function NotesPage(): React.ReactElement {
                 {notes.filter(n => n.tags?.includes('discuss')).length}
               </span>
             )}
-          </button>
+          </GlassPill>
         ))}
       </div>
 

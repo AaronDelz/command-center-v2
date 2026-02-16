@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { GlassModal, GlassInput, GlassSelect, EmberButton } from '@/components/ui';
+import { color, radius } from '@/styles/tokens';
 import type { Goal, GoalCategory } from '@/lib/types';
 
 const CATEGORIES: GoalCategory[] = ['financial', 'health', 'business', 'personal', 'technical'];
@@ -21,7 +23,10 @@ export function AddGoalModal({ isOpen, onClose, onSubmit }: AddGoalModalProps): 
   const [deadline, setDeadline] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isOpen) return null;
+  const categoryOptions = CATEGORIES.map((c) => ({
+    value: c,
+    label: c.charAt(0).toUpperCase() + c.slice(1),
+  }));
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -40,7 +45,6 @@ export function AddGoalModal({ isOpen, onClose, onSubmit }: AddGoalModalProps): 
         milestones: [],
         status: 'active',
       });
-      // Reset
       setTitle(''); setDescription(''); setCategory('personal');
       setTarget(''); setCurrent('0'); setUnit(''); setDeadline('');
       onClose();
@@ -50,90 +54,93 @@ export function AddGoalModal({ isOpen, onClose, onSubmit }: AddGoalModalProps): 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-surface border border-border rounded-xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">New Goal</h2>
-          <button onClick={onClose} className="text-text-muted hover:text-foreground text-xl">×</button>
+    <GlassModal
+      open={isOpen}
+      onClose={onClose}
+      title="New Goal"
+      width="md"
+      footer={
+        <EmberButton
+          variant="primary"
+          size="md"
+          onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
+          disabled={isSubmitting || !title.trim() || !target || !unit.trim()}
+        >
+          {isSubmitting ? 'Creating...' : 'Create Goal'}
+        </EmberButton>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <GlassInput
+          label="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. $10K/mo Revenue"
+          autoFocus
+        />
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <label style={{ fontSize: '0.7rem', fontWeight: 500, color: color.text.secondary, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+            Description
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            placeholder="Optional description..."
+            style={{
+              width: '100%',
+              background: color.bg.surface,
+              border: `1.5px solid ${color.glass.border}`,
+              borderRadius: radius.lg,
+              color: color.text.primary,
+              padding: '10px 14px',
+              fontSize: '0.875rem',
+              resize: 'none',
+              outline: 'none',
+            }}
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Title *</label>
-            <input
-              type="text" value={title} onChange={(e) => setTitle(e.target.value)} required
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:border-accent focus:outline-none"
-              placeholder="e.g. $10K/mo Revenue"
-            />
-          </div>
+        <div className="grid grid-cols-2 gap-4">
+          <GlassSelect
+            label="Category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as GoalCategory)}
+            options={categoryOptions}
+          />
+          <GlassInput
+            label="Unit"
+            value={unit}
+            onChange={(e) => setUnit(e.target.value)}
+            placeholder="$, %, clients, days"
+          />
+        </div>
 
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Description</label>
-            <textarea
-              value={description} onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:border-accent focus:outline-none resize-none"
-              rows={2} placeholder="Optional description..."
-            />
-          </div>
+        <div className="grid grid-cols-2 gap-4">
+          <GlassInput
+            label="Target"
+            type="number"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            placeholder="10000"
+          />
+          <GlassInput
+            label="Current"
+            type="number"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            placeholder="0"
+          />
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-text-muted mb-1">Category *</label>
-              <select
-                value={category} onChange={(e) => setCategory(e.target.value as GoalCategory)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:border-accent focus:outline-none"
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm text-text-muted mb-1">Unit *</label>
-              <input
-                type="text" value={unit} onChange={(e) => setUnit(e.target.value)} required
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:border-accent focus:outline-none"
-                placeholder="$, %, clients, days"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-text-muted mb-1">Target *</label>
-              <input
-                type="number" value={target} onChange={(e) => setTarget(e.target.value)} required
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:border-accent focus:outline-none"
-                placeholder="10000"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-text-muted mb-1">Current</label>
-              <input
-                type="number" value={current} onChange={(e) => setCurrent(e.target.value)}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:border-accent focus:outline-none"
-                placeholder="0"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm text-text-muted mb-1">Deadline</label>
-            <input
-              type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)}
-              className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground focus:border-accent focus:outline-none"
-            />
-          </div>
-
-          <button
-            type="submit" disabled={isSubmitting || !title.trim() || !target || !unit.trim()}
-            className="w-full py-2.5 rounded-lg bg-accent text-background font-medium hover:bg-accent-dim disabled:opacity-50 transition-all"
-          >
-            {isSubmitting ? 'Creating...' : 'Create Goal'}
-          </button>
-        </form>
-      </div>
-    </div>
+        <GlassInput
+          label="Deadline"
+          type="date"
+          value={deadline}
+          onChange={(e) => setDeadline(e.target.value)}
+        />
+      </form>
+    </GlassModal>
   );
 }
