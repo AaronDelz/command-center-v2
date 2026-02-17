@@ -20,32 +20,26 @@ interface NavGroup {
 
 const navGroups: NavGroup[] = [
   {
-    label: 'COMMAND DECK',
+    label: 'CORE',
     items: [
-      { label: 'Dashboard', href: '/', icon: '◉' },
-      { label: 'Battle Board', href: '/kanban', icon: '⚒' },
-    ],
-  },
-  {
-    label: 'OPERATIONS',
-    items: [
-      { label: 'Content Hub', href: '/content', icon: '📱' },
-      { label: 'Client Command', href: '/clients', icon: '👥', badge: 3 },
-      { label: 'Time Forge', href: '/time', icon: '⏱️' },
-    ],
-  },
-  {
-    label: 'GROWTH',
-    items: [
-      { label: 'The Helm', href: '/helm', icon: '🎯' },
+      { label: 'The Helm', href: '/', icon: '🎯' },
+      { label: 'Battle Board', href: '/kanban', icon: '⚔️' },
       { label: 'The Anvil', href: '/notes', icon: '🔨' },
     ],
   },
   {
-    label: 'INTEL',
+    label: 'WORK',
+    items: [
+      { label: 'Client Command', href: '/clients', icon: '👥' },
+      { label: 'Time Forge', href: '/time', icon: '⏱️' },
+      { label: 'Calendar', href: '/calendar', icon: '📅' },
+    ],
+  },
+  {
+    label: 'RESOURCES',
     items: [
       { label: 'Vault', href: '/vault', icon: '📚' },
-      { label: 'Calendar', href: '/calendar', icon: '📅' },
+      { label: 'Content Hub', href: '/content', icon: '📱' },
     ],
   },
 ];
@@ -248,8 +242,19 @@ export function Sidebar(): React.ReactElement {
             </div>
           ))}
 
-          {/* Settings - pushed to bottom */}
+          {/* System - pushed to bottom */}
           <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: `1px solid rgba(255,255,255,0.04)`, padding: '12px 16px 4px' }}>
+            <div style={{
+              fontSize: '0.6rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.18em',
+              color: color.text.accent,
+              marginBottom: '6px',
+              fontWeight: 600,
+              paddingLeft: '6px',
+            }}>
+              SYSTEM
+            </div>
             <Link
               href="/settings"
               style={{
@@ -264,8 +269,34 @@ export function Sidebar(): React.ReactElement {
                 textDecoration: 'none',
                 transition: `all ${animation.duration.normal} ${animation.easing.default}`,
               }}
+              onMouseEnter={(e) => {
+                if (pathname !== '/settings') {
+                  e.currentTarget.style.color = color.text.primary;
+                  e.currentTarget.style.transform = 'translateX(3px)';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (pathname !== '/settings') {
+                  e.currentTarget.style.color = color.text.secondary;
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
             >
-              <span style={{ fontSize: '0.95rem', width: '22px', textAlign: 'center' }}>⚙</span>
+              {pathname === '/settings' && (
+                <div style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: '6px',
+                  bottom: '6px',
+                  width: '3px',
+                  borderRadius: '0 2px 2px 0',
+                  background: color.ember.DEFAULT,
+                  boxShadow: `0 0 8px rgba(255,107,53,0.4)`,
+                }} />
+              )}
+              <span style={{ fontSize: '0.95rem', width: '22px', textAlign: 'center' }}>⚙️</span>
               <span>Settings</span>
             </Link>
           </div>
