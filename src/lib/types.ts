@@ -265,3 +265,21 @@ export interface DropsData {
   drops: Drop[];
   lastUpdated: string;
 }
+
+// Calendar Types
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  date: string;        // YYYY-MM-DD
+  time?: string;       // HH:MM (24h)
+  endTime?: string;    // HH:MM (24h)
+  color?: string;      // hex color
+  description?: string;
+  recurring?: 'daily' | 'weekly' | 'monthly';
+}
+
+export interface CalendarData {
+  events: CalendarEvent[];
+  lastUpdated: string;
+}

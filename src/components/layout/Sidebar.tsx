@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { SimpleStatusOrb } from '../ui/StatusOrb';
+import { StatusOrb } from '../status/StatusOrb';
 import { color, typography, animation, layout, zIndex, glass, radius } from '@/styles/tokens';
 
 interface NavItem {
@@ -55,10 +55,10 @@ interface StatusData {
   stateDescription: string;
 }
 
-function mapStatus(state: string): 'online' | 'thinking' | 'alert' | 'idle' {
+function mapStatus(state: string): 'idle' | 'active' | 'alert' | 'thinking' {
   if (state === 'thinking' || state === 'working' || state === 'coding' || state === 'reading') return 'thinking';
   if (state === 'alert') return 'alert';
-  if (state === 'active' || state === 'online') return 'online';
+  if (state === 'active' || state === 'online') return 'active';
   return 'idle';
 }
 
@@ -156,18 +156,11 @@ export function Sidebar(): React.ReactElement {
           </div>
         </div>
 
-        {/* Status Orb */}
-        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', borderBottom: `1px solid rgba(255,255,255,0.05)` }}>
-          <SimpleStatusOrb status={orbStatus} size="lg" />
-          <span style={{
-            fontSize: '0.65rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.15em',
-            color: orbStatus === 'online' ? color.status.healthy : orbStatus === 'alert' ? color.status.error : color.text.secondary,
-            fontWeight: 500,
-          }}>
-            ● {orbStatus === 'online' ? 'Online' : orbStatus === 'thinking' ? 'Working' : orbStatus === 'alert' ? 'Alert' : 'Idle'}
-          </span>
+        {/* Status Orb — Constellation */}
+        <div style={{ padding: '8px 20px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderBottom: `1px solid rgba(255,255,255,0.05)`, overflow: 'visible' }}>
+          <div style={{ transform: 'scale(0.55)', transformOrigin: 'center center', margin: '-20px 0' }}>
+            <StatusOrb state={orbStatus} />
+          </div>
         </div>
 
         {/* Navigation */}
