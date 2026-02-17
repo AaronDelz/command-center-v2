@@ -1,7 +1,10 @@
-import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { GoalsSummary } from '@/components/goals/GoalsSummary';
 import { UniversalInbox } from '@/components/notes/UniversalInbox';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { QOTDBanner } from '@/components/dashboard/QOTDBanner';
+import { ActivityFeed } from '@/components/dashboard/ActivityFeed';
+import { MiniCalendar } from '@/components/dashboard/MiniCalendar';
+import { MiniKanban } from '@/components/dashboard/MiniKanban';
 
 function getDateString(): string {
   const d = new Date();
@@ -10,27 +13,51 @@ function getDateString(): string {
   return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
 }
 
-export function Home(): React.ReactElement {
+export default function Home(): React.ReactElement {
   return (
     <div>
-      <PageHeader
-        title="Command Deck"
-        subtitle="Build something beautiful today 🖤"
-        date={getDateString()}
-      />
+      {/* Header with gradient fade */}
+      <div style={{ position: 'relative' }}>
+        <PageHeader
+          title="Command Deck"
+          subtitle="Build something beautiful today 🖤"
+          date={getDateString()}
+        />
+        {/* Gradient fade at bottom of header */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '16px',
+            background: 'linear-gradient(to bottom, transparent, rgba(13, 13, 20, 0.6))',
+            pointerEvents: 'none',
+          }}
+        />
+      </div>
 
-      {/* Top row: Goals Summary + Universal Inbox */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+      {/* QOTD Banner */}
+      <div className="mb-5">
+        <QOTDBanner />
+      </div>
+
+      {/* Top row: Goals Summary + Drop Box */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
         <GoalsSummary />
         <UniversalInbox />
       </div>
 
-      {/* Kanban Board */}
-      <section className="mb-6">
-        <KanbanBoard />
-      </section>
+      {/* Mini Kanban Preview */}
+      <div className="mb-5">
+        <MiniKanban />
+      </div>
+
+      {/* Bottom row: Activity + Calendar */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+        <ActivityFeed />
+        <MiniCalendar />
+      </div>
     </div>
   );
 }
-
-export default Home;
