@@ -5,10 +5,11 @@ import { SectionHeading, GlassPill, EmberButton } from '@/components/ui';
 import { NotesSections } from '@/components/notes/NotesSections';
 import { PromoteToKanban } from '@/components/notes/PromoteToKanban';
 import { color, typography } from '@/styles/tokens';
-import type { Drop, Note, DropType } from '@/lib/types';
+import type { Drop, Note, DropType, JournalTag } from '@/lib/types';
 import type { UnifiedItem } from '@/components/notes/DropCard';
 
 type FilterType = 'all' | 'note' | 'idea' | 'link' | 'task' | 'file' | 'question';
+type JournalFilterType = 'all' | JournalTag;
 
 // Convert drops + notes into unified items
 function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
@@ -25,6 +26,7 @@ function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
       createdAt: drop.createdAt,
       source: 'drop',
       promotedTo: drop.promotedTo,
+      journalTag: drop.journalTag,
     });
   }
 
@@ -58,7 +60,11 @@ export default function NotesPage(): React.ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
+  const [journalFilter, setJournalFilter] = useState<JournalFilterType>('all');
   const [promoteItem, setPromoteItem] = useState<UnifiedItem | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isMerging, setIsMerging] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -90,9 +96,13 @@ export default function NotesPage(): React.ReactElement {
   const allItems = unifyItems(drops, notes);
 
   // Filter items
-  const filteredItems = filter === 'all'
+  let filteredItems = filter === 'all'
     ? allItems
     : allItems.filter((item) => item.type === filter);
+
+  if (journalFilter !== 'all') {
+    filteredItems = filteredItems.filter((item) => item.journalTag === journalFilter);
+  }
 
   // Count by type
   const typeCounts = allItems.reduce((acc, item) => {
@@ -169,6 +179,44 @@ export default function NotesPage(): React.ReactElement {
     await fetchData();
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleMerge() {
+    if (selectedIds.size < 2 || isMerging) return;
+    setIsMerging(true);
+    try {
+      const res = await fetch('/api/drops/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (!res.ok) throw new Error('Merge failed');
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      await fetchData();
+    } catch (err) {
+      console.error('Merge error:', err);
+    } finally {
+      setIsMerging(false);
+    }
+  }
+
+  const JOURNAL_FILTER_OPTIONS: { key: JournalFilterType; label: string; icon: string }[] = [
+    { key: 'all', label: 'All Tags', icon: '' },
+    { key: 'discussed', label: 'Discussed', icon: '📋' },
+    { key: 'decisions', label: 'Decisions', icon: '⚡' },
+    { key: 'built', label: 'Built', icon: '🔨' },
+    { key: 'insight', label: 'Insight', icon: '💡' },
+    { key: 'open', label: 'Open', icon: '❓' },
+  ];
+
   const FILTER_OPTIONS: { key: FilterType; label: string; icon: string; variant: 'default' | 'ember' }[] = [
     { key: 'all', label: 'All', icon: '', variant: 'default' },
     { key: 'note', label: 'Notes', icon: '📝', variant: 'default' },
@@ -181,11 +229,25 @@ export default function NotesPage(): React.ReactElement {
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8">
       {/* Header */}
-      <SectionHeading
-        title="Brain Inbox"
-        icon={<span>🧠</span>}
-        badge={`${allItems.length} items${totalNew > 0 ? ` • ${totalNew} new` : ''}`}
-      />
+      <div className="flex items-center gap-3">
+        <div className="flex-1">
+          <SectionHeading
+            title="Brain Inbox"
+            icon={<span>🧠</span>}
+            badge={`${allItems.length} items${totalNew > 0 ? ` • ${totalNew} new` : ''}`}
+          />
+        </div>
+        <EmberButton
+          variant={selectionMode ? 'primary' : 'ghost'}
+          size="sm"
+          onClick={() => {
+            setSelectionMode(!selectionMode);
+            if (selectionMode) setSelectedIds(new Set());
+          }}
+        >
+          {selectionMode ? '✕ Cancel' : '☑️ Select'}
+        </EmberButton>
+      </div>
 
       {/* Subtitle */}
       <p
@@ -217,6 +279,23 @@ export default function NotesPage(): React.ReactElement {
         ))}
       </div>
 
+      {/* Journal Tag Filter */}
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
+        <span style={{ fontSize: typography.fontSize.caption, color: color.text.dim, marginRight: '4px' }}>Journal:</span>
+        {JOURNAL_FILTER_OPTIONS.map(({ key, label, icon }) => (
+          <GlassPill
+            key={key}
+            variant="default"
+            size="xs"
+            active={journalFilter === key}
+            onClick={() => setJournalFilter(key)}
+          >
+            {icon && <span className="mr-1">{icon}</span>}
+            {label}
+          </GlassPill>
+        ))}
+      </div>
+
       {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
@@ -231,7 +310,39 @@ export default function NotesPage(): React.ReactElement {
           items={filteredItems}
           onPromote={(item) => setPromoteItem(item)}
           onArchive={handleArchive}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
         />
+      )}
+
+      {/* Floating Merge Bar */}
+      {selectionMode && selectedIds.size >= 2 && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '80px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '12px 24px',
+            background: 'rgba(13, 13, 20, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: `1.5px solid ${color.glass.borderHover}`,
+            borderRadius: '16px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 107, 53, 0.15)',
+          }}
+        >
+          <span style={{ fontSize: typography.fontSize.caption, color: color.text.secondary }}>
+            {selectedIds.size} selected
+          </span>
+          <EmberButton size="sm" onClick={handleMerge} disabled={isMerging}>
+            {isMerging ? '⏳ Merging...' : `🔗 Merge Selected (${selectedIds.size})`}
+          </EmberButton>
+        </div>
       )}
 
       {/* Promote Modal */}

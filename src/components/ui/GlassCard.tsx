@@ -10,6 +10,7 @@ interface GlassCardProps {
   glow?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
   onClick?: () => void;
+  style?: React.CSSProperties;
 }
 
 const paddingMap = {
@@ -26,6 +27,7 @@ export function GlassCard({
   glow = false,
   padding = 'md',
   onClick,
+  style: styleProp,
 }: GlassCardProps): React.ReactElement {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -67,6 +69,7 @@ export function GlassCard({
         transition: `all ${animation.duration.slow} ${animation.easing.default}`,
         position: 'relative',
         overflow: 'hidden',
+        ...styleProp,
       }}
     >
       {/* Inner top shine */}

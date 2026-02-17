@@ -248,6 +248,7 @@ export interface TimeEntriesData {
 
 export type DropType = 'note' | 'idea' | 'link' | 'task' | 'file' | 'unsorted';
 export type DropStatus = 'new' | 'triaged' | 'promoted' | 'archived';
+export type JournalTag = 'discussed' | 'decisions' | 'built' | 'insight' | 'open';
 
 export interface Drop {
   id: string;
@@ -257,6 +258,7 @@ export interface Drop {
   files?: string[];
   status: DropStatus;
   promotedTo?: string; // Kanban card ID if promoted to task
+  journalTag?: JournalTag;
   createdAt: string;
   updatedAt?: string;
 }

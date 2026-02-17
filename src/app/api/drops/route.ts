@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readDropsData, writeDropsData } from '@/lib/data';
-import type { Drop, DropType } from '@/lib/types';
+import type { Drop, DropType, JournalTag } from '@/lib/types';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -44,6 +44,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       content: string;
       url?: string;
       files?: string[];
+      journalTag?: JournalTag;
     };
 
     if (!body.type || !body.content || typeof body.content !== 'string') {
@@ -75,6 +76,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Add optional fields
     if (body.url) newDrop.url = body.url;
     if (body.files && body.files.length > 0) newDrop.files = body.files;
+    if (body.journalTag) {
+      const validTags: JournalTag[] = ['discussed', 'decisions', 'built', 'insight', 'open'];
+      if (validTags.includes(body.journalTag)) {
+        newDrop.journalTag = body.journalTag;
+      }
+    }
 
     // Add to the beginning of the drops array
     const updatedDrops = [newDrop, ...data.drops];
@@ -102,6 +109,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
       content?: string;
       status?: Drop['status'];
       promotedTo?: string;
+      journalTag?: JournalTag | null;
     };
 
     if (!body.id) {
@@ -152,6 +160,17 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
     if (body.promotedTo) {
       updatedDrop.promotedTo = body.promotedTo;
+    }
+
+    if (body.journalTag !== undefined) {
+      if (body.journalTag === null) {
+        delete updatedDrop.journalTag;
+      } else {
+        const validTags: JournalTag[] = ['discussed', 'decisions', 'built', 'insight', 'open'];
+        if (validTags.includes(body.journalTag)) {
+          updatedDrop.journalTag = body.journalTag;
+        }
+      }
     }
 
     updatedDrop.updatedAt = new Date().toISOString();

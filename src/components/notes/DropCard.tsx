@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { GlassCard, EmberButton, GlassPill } from '@/components/ui';
 import { color, typography, animation } from '@/styles/tokens';
-import type { Drop } from '@/lib/types';
+import type { Drop, JournalTag } from '@/lib/types';
 import type { Note } from '@/lib/types';
 
 // Unified item that can be either a Drop or a Note
@@ -19,7 +19,16 @@ export interface UnifiedItem {
   source: 'drop' | 'note';
   done?: boolean;
   promotedTo?: string;
+  journalTag?: JournalTag;
 }
+
+const JOURNAL_TAG_CONFIG: Record<JournalTag, { icon: string; label: string; color: string; bg: string; border: string }> = {
+  discussed: { icon: '📋', label: 'Discussed', color: '#60a5fa', bg: 'rgba(96, 165, 250, 0.10)', border: 'rgba(96, 165, 250, 0.25)' },
+  decisions: { icon: '⚡', label: 'Decision', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.10)', border: 'rgba(251, 191, 36, 0.25)' },
+  built:     { icon: '🔨', label: 'Built', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.10)', border: 'rgba(74, 222, 128, 0.25)' },
+  insight:   { icon: '💡', label: 'Insight', color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.10)', border: 'rgba(167, 139, 250, 0.25)' },
+  open:      { icon: '❓', label: 'Open', color: '#f472b6', bg: 'rgba(244, 114, 182, 0.10)', border: 'rgba(244, 114, 182, 0.25)' },
+};
 
 const TYPE_ICONS: Record<string, string> = {
   note: '📝',
@@ -60,23 +69,48 @@ interface DropCardProps {
   item: UnifiedItem;
   onPromote?: (item: UnifiedItem) => void;
   onArchive?: (item: UnifiedItem) => void;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
-export function DropCard({ item, onPromote, onArchive }: DropCardProps): React.ReactElement {
+export function DropCard({ item, onPromote, onArchive, selectionMode, selected, onToggleSelect }: DropCardProps): React.ReactElement {
   const [expanded, setExpanded] = useState(false);
   const icon = TYPE_ICONS[item.type] || '📦';
   const isLink = item.type === 'link' && item.url;
   const isFile = item.type === 'file' && item.files && item.files.length > 0;
   const isPromoted = item.status === 'promoted';
   const isArchived = item.status === 'archived';
+  const journalConfig = item.journalTag ? JOURNAL_TAG_CONFIG[item.journalTag] : null;
 
   return (
     <GlassCard
       hover
       padding="sm"
       className={`group ${isPromoted || isArchived ? 'opacity-60' : ''}`}
+      style={selected ? { border: `1.5px solid ${color.ember.DEFAULT}`, boxShadow: '0 0 12px rgba(255, 107, 53, 0.15)' } : undefined}
     >
       <div className="flex items-start gap-3">
+        {/* Selection checkbox */}
+        {selectionMode && (
+          <label
+            className="flex-shrink-0 mt-1 cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              type="checkbox"
+              checked={selected || false}
+              onChange={() => onToggleSelect?.(item.id)}
+              style={{
+                width: '16px',
+                height: '16px',
+                accentColor: color.ember.DEFAULT,
+                cursor: 'pointer',
+              }}
+            />
+          </label>
+        )}
+
         {/* Type icon */}
         <span
           className="flex-shrink-0 text-lg mt-0.5"
@@ -92,6 +126,24 @@ export function DropCard({ item, onPromote, onArchive }: DropCardProps): React.R
             <GlassPill variant={item.type === 'idea' ? 'ember' : 'default'} size="xs">
               {TYPE_LABELS[item.type]}
             </GlassPill>
+            {journalConfig && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  fontSize: typography.fontSize.metadata,
+                  fontWeight: typography.fontWeight.medium,
+                  color: journalConfig.color,
+                  background: journalConfig.bg,
+                  border: `1px solid ${journalConfig.border}`,
+                }}
+              >
+                {journalConfig.icon} {journalConfig.label}
+              </span>
+            )}
             {item.source === 'note' && (
               <GlassPill variant="info" size="xs">Note</GlassPill>
             )}

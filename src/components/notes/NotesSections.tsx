@@ -10,9 +10,12 @@ interface NotesSectionsProps {
   items: UnifiedItem[];
   onPromote: (item: UnifiedItem) => void;
   onArchive: (item: UnifiedItem) => void;
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
-export function NotesSections({ items, onPromote, onArchive }: NotesSectionsProps): React.ReactElement {
+export function NotesSections({ items, onPromote, onArchive, selectionMode, selectedIds, onToggleSelect }: NotesSectionsProps): React.ReactElement {
   const { quickDrops, parkedConversations, openQuestions } = useMemo(() => {
     const quickDrops: UnifiedItem[] = [];
     const parkedConversations: UnifiedItem[] = [];
@@ -68,6 +71,9 @@ export function NotesSections({ items, onPromote, onArchive }: NotesSectionsProp
                 item={item}
                 onPromote={onPromote}
                 onArchive={onArchive}
+                selectionMode={selectionMode}
+                selected={selectedIds?.has(item.id)}
+                onToggleSelect={onToggleSelect}
               />
             ))}
           </div>
@@ -91,6 +97,9 @@ export function NotesSections({ items, onPromote, onArchive }: NotesSectionsProp
                 item={item}
                 onPromote={onPromote}
                 onArchive={onArchive}
+                selectionMode={selectionMode}
+                selected={selectedIds?.has(item.id)}
+                onToggleSelect={onToggleSelect}
               />
             ))}
           </div>
@@ -114,6 +123,9 @@ export function NotesSections({ items, onPromote, onArchive }: NotesSectionsProp
                 item={item}
                 onPromote={onPromote}
                 onArchive={onArchive}
+                selectionMode={selectionMode}
+                selected={selectedIds?.has(item.id)}
+                onToggleSelect={onToggleSelect}
               />
             ))}
           </div>
