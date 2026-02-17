@@ -241,3 +241,21 @@ main {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.8; transform: scale(1.05); }
 }
+
+/* Vault Markdown Styles */
+.vault-markdown h1 { font-size: 1.3rem; font-weight: 700; color: #e2e8f0; margin: 20px 0 10px; }
+.vault-markdown h2 { font-size: 1.1rem; font-weight: 600; color: #cbd5e1; margin: 18px 0 8px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px; }
+.vault-markdown h3 { font-size: 0.95rem; font-weight: 600; color: #94a3b8; margin: 14px 0 6px; }
+.vault-markdown h4 { font-size: 0.85rem; font-weight: 600; color: #64748b; margin: 10px 0 4px; }
+.vault-markdown strong { color: #e2e8f0; }
+.vault-markdown a { color: #f97316; text-decoration: underline; text-underline-offset: 2px; }
+.vault-markdown a:hover { color: #fb923c; }
+.vault-markdown code { background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px; font-size: 0.78rem; color: #f59e0b; }
+.vault-markdown pre { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 12px; overflow-x: auto; margin: 10px 0; }
+.vault-markdown pre code { background: none; padding: 0; color: #94a3b8; }
+.vault-markdown ul { margin: 6px 0; padding-left: 20px; }
+.vault-markdown li { margin: 3px 0; }
+.vault-markdown hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 16px 0; }
+.vault-markdown table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+.vault-markdown th, .vault-markdown td { padding: 6px 10px; border: 1px solid rgba(255,255,255,0.08); font-size: 0.75rem; }
+.vault-markdown th { background: rgba(255,255,255,0.04); font-weight: 600; color: #cbd5e1; }

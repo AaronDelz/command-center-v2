@@ -2,13 +2,47 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readDropsData, writeDropsData } from '@/lib/data';
 import type { Drop, DropType, JournalTag } from '@/lib/types';
 
+function generateShortId(existingIds: Set<string>): string {
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I, O
+  const digits = '0123456789';
+  for (let attempts = 0; attempts < 100; attempts++) {
+    const id = letters[Math.floor(Math.random() * letters.length)]
+      + digits[Math.floor(Math.random() * digits.length)]
+      + letters[Math.floor(Math.random() * letters.length)];
+    if (!existingIds.has(id)) return id;
+  }
+  // Fallback: 4-char
+  return letters[Math.floor(Math.random() * letters.length)]
+    + digits[Math.floor(Math.random() * digits.length)]
+    + letters[Math.floor(Math.random() * letters.length)]
+    + digits[Math.floor(Math.random() * digits.length)];
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') as DropType | null;
     const limit = searchParams.get('limit');
+    const backfill = searchParams.get('backfill');
 
     const data = await readDropsData();
+
+    // Backfill shortIds for existing drops that don't have one
+    if (backfill === 'shortIds') {
+      const existingIds = new Set(data.drops.filter(d => d.shortId).map(d => d.shortId!));
+      let changed = false;
+      for (const drop of data.drops) {
+        if (!drop.shortId) {
+          drop.shortId = generateShortId(existingIds);
+          existingIds.add(drop.shortId);
+          changed = true;
+        }
+      }
+      if (changed) {
+        await writeDropsData({ ...data, lastUpdated: new Date().toISOString() });
+      }
+    }
+
     let drops = data.drops;
 
     // Filter by type if provided
@@ -54,7 +88,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Validate type
     const validTypes: DropType[] = ['note', 'idea', 'link', 'task', 'file', 'unsorted'];
     if (!validTypes.includes(body.type)) {
       return NextResponse.json(
@@ -65,15 +98,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const data = await readDropsData();
 
+    // Generate unique shortId
+    const existingIds = new Set(data.drops.filter(d => d.shortId).map(d => d.shortId!));
+    const shortId = generateShortId(existingIds);
+
     const newDrop: Drop = {
       id: `drop-${Date.now()}`,
+      shortId,
       type: body.type,
       content: body.content.trim(),
       status: 'new',
       createdAt: new Date().toISOString(),
     };
 
-    // Add optional fields
     if (body.url) newDrop.url = body.url;
     if (body.files && body.files.length > 0) newDrop.files = body.files;
     if (body.journalTag) {
@@ -83,7 +120,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Add to the beginning of the drops array
     const updatedDrops = [newDrop, ...data.drops];
     
     await writeDropsData({
@@ -110,6 +146,8 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
       status?: Drop['status'];
       promotedTo?: string;
       journalTag?: JournalTag | null;
+      archived?: boolean;
+      column?: string;
     };
 
     if (!body.id) {
@@ -131,7 +169,6 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
     const updatedDrop: Drop = { ...data.drops[dropIndex] };
 
-    // Update fields if provided
     if (body.type) {
       const validTypes: DropType[] = ['note', 'idea', 'link', 'task', 'file', 'unsorted'];
       if (!validTypes.includes(body.type)) {
@@ -160,6 +197,16 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
 
     if (body.promotedTo) {
       updatedDrop.promotedTo = body.promotedTo;
+    }
+
+    // Archive support
+    if (body.archived !== undefined) {
+      updatedDrop.archived = body.archived;
+      if (body.archived) {
+        updatedDrop.archivedAt = new Date().toISOString();
+      } else {
+        delete updatedDrop.archivedAt;
+      }
     }
 
     if (body.journalTag !== undefined) {

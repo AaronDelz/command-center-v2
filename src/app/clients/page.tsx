@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { ClientTable } from '@/components/clients/ClientTable';
 import { GlassCard, GlassModal, GlassInput, GlassSelect, GlassPill, EmberButton } from '@/components/ui';
 import { QuickTimeWidget } from '@/components/time/QuickTimeWidget';
+import { A2PPipeline } from '@/components/clients/A2PPipeline';
 import { color, typography, radius } from '@/styles/tokens';
 import type { Client, ClientStatus, ClientsData, PaymentStatus } from '@/lib/types';
 
@@ -239,11 +240,14 @@ const STATUS_FILTERS: Array<{ key: ClientStatus | 'all'; label: string }> = [
 
 // ─── Page Component ─────────────────────────────────────────────
 
+type ClientTab = 'roster' | 'a2p';
+
 export default function ClientsPage(): React.ReactElement {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<ClientStatus | 'all'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<ClientTab>('roster');
 
   const fetchClients = useCallback(async () => {
     try {
@@ -315,17 +319,45 @@ export default function ClientsPage(): React.ReactElement {
     );
   }
 
+  const TAB_OPTIONS: Array<{ key: ClientTab; label: string; icon: string }> = [
+    { key: 'roster', label: 'Client Roster', icon: '👥' },
+    { key: 'a2p', label: 'A2P Pipeline', icon: '📡' },
+  ];
+
   return (
     <div>
       <PageHeader
         title="Client Command"
-        subtitle="Your client roster — relationships, revenue, results"
+        subtitle={activeTab === 'roster' ? 'Your client roster — relationships, revenue, results' : 'A2P & Toll-Free registration tracker'}
         actions={
-          <EmberButton variant="primary" size="sm" onClick={() => setShowAddModal(true)}>
-            + Add Client
-          </EmberButton>
+          activeTab === 'roster' ? (
+            <EmberButton variant="primary" size="sm" onClick={() => setShowAddModal(true)}>
+              + Add Client
+            </EmberButton>
+          ) : undefined
         }
       />
+
+      {/* Tab Switcher */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px' }}>
+        {TAB_OPTIONS.map((tab) => (
+          <GlassPill
+            key={tab.key}
+            variant="default"
+            size="sm"
+            active={activeTab === tab.key}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.icon} {tab.label}
+          </GlassPill>
+        ))}
+      </div>
+
+      {/* A2P Pipeline Tab */}
+      {activeTab === 'a2p' && <A2PPipeline />}
+
+      {/* Client Roster Tab */}
+      {activeTab !== 'roster' ? null : <>
 
       {/* Summary Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
@@ -409,6 +441,7 @@ export default function ClientsPage(): React.ReactElement {
           onAdd={handleAddClient}
         />
       )}
+      </>}
     </div>
   );
 }

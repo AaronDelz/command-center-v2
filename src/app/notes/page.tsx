@@ -11,13 +11,13 @@ import type { UnifiedItem } from '@/components/notes/DropCard';
 type FilterType = 'all' | 'note' | 'idea' | 'link' | 'task' | 'file' | 'question';
 type JournalFilterType = 'all' | JournalTag;
 
-// Convert drops + notes into unified items
 function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
   const items: UnifiedItem[] = [];
 
   for (const drop of drops) {
     items.push({
       id: drop.id,
+      shortId: drop.shortId,
       type: drop.type === 'unsorted' ? 'unsorted' : drop.type,
       content: drop.content,
       url: drop.url,
@@ -27,13 +27,14 @@ function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
       source: 'drop',
       promotedTo: drop.promotedTo,
       journalTag: drop.journalTag,
+      archived: drop.archived,
+      archivedAt: drop.archivedAt,
+      replies: drop.replies,
     });
   }
 
   for (const note of notes) {
-    // Determine type from content/tags
     let type: UnifiedItem['type'] = 'note';
-    if (note.tags?.includes('discuss')) type = 'note';
     if (note.text.includes('?') && note.text.split('?').length > 3) type = 'question';
 
     items.push({
@@ -48,9 +49,7 @@ function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
     });
   }
 
-  // Sort newest first
   items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
   return items;
 }
 
@@ -65,11 +64,12 @@ export default function NotesPage(): React.ReactElement {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isMerging, setIsMerging] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
       const [dropsRes, notesRes] = await Promise.all([
-        fetch('/api/drops'),
+        fetch('/api/drops?backfill=shortIds'),
         fetch('/api/notes'),
       ]);
 
@@ -95,26 +95,25 @@ export default function NotesPage(): React.ReactElement {
 
   const allItems = unifyItems(drops, notes);
 
-  // Filter items
-  let filteredItems = filter === 'all'
-    ? allItems
-    : allItems.filter((item) => item.type === filter);
+  // Archive filtering
+  const activeItems = allItems.filter(i => !i.archived);
+  const archivedItems = allItems.filter(i => i.archived);
+  const displayItems = showArchive ? archivedItems : activeItems;
 
+  // Type/journal filtering
+  let filteredItems = filter === 'all' ? displayItems : displayItems.filter((item) => item.type === filter);
   if (journalFilter !== 'all') {
     filteredItems = filteredItems.filter((item) => item.journalTag === journalFilter);
   }
 
-  // Count by type
-  const typeCounts = allItems.reduce((acc, item) => {
+  const typeCounts = activeItems.reduce((acc, item) => {
     acc[item.type] = (acc[item.type] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const totalNew = allItems.filter((i) => i.status === 'new').length;
+  const totalNew = activeItems.filter((i) => i.status === 'new').length;
 
-  // Promote to kanban handler
   async function handlePromote(item: UnifiedItem, title: string, column: string, priority: string) {
-    // Create kanban card
     const cardRes = await fetch('/api/kanban', { method: 'GET' });
     if (!cardRes.ok) throw new Error('Failed to fetch kanban');
     const kanbanData = await cardRes.json();
@@ -130,38 +129,26 @@ export default function NotesPage(): React.ReactElement {
       created: new Date().toISOString(),
     };
 
-    // Find target column
-    const targetCol = kanbanData.columns.find(
-      (c: { id: string }) => c.id === column
-    );
-    if (targetCol) {
-      targetCol.cards.unshift(newCard);
-    }
+    const targetCol = kanbanData.columns.find((c: { id: string }) => c.id === column);
+    if (targetCol) targetCol.cards.unshift(newCard);
 
-    // Save kanban
     await fetch('/api/kanban', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(kanbanData),
     });
 
-    // Mark drop as promoted
     if (item.source === 'drop') {
       await fetch('/api/drops', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: item.id,
-          status: 'promoted',
-          promotedTo: newCard.id,
-        }),
+        body: JSON.stringify({ id: item.id, status: 'promoted', promotedTo: newCard.id }),
       });
     }
 
     await fetchData();
   }
 
-  // Archive handler
   async function handleArchive(item: UnifiedItem) {
     if (item.source === 'drop') {
       await fetch('/api/drops', {
@@ -177,6 +164,10 @@ export default function NotesPage(): React.ReactElement {
       });
     }
     await fetchData();
+  }
+
+  function handleUpdate() {
+    fetchData();
   }
 
   function toggleSelect(id: string) {
@@ -232,49 +223,39 @@ export default function NotesPage(): React.ReactElement {
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <SectionHeading
-            title="Brain Inbox"
-            icon={<span>🧠</span>}
-            badge={`${allItems.length} items${totalNew > 0 ? ` • ${totalNew} new` : ''}`}
+            title={showArchive ? 'Archive' : 'Brain Inbox'}
+            icon={<span>{showArchive ? '📦' : '🧠'}</span>}
+            badge={`${(showArchive ? archivedItems : activeItems).length} items${!showArchive && totalNew > 0 ? ` • ${totalNew} new` : ''}`}
           />
         </div>
         <EmberButton
+          variant={showArchive ? 'primary' : 'ghost'}
+          size="sm"
+          onClick={() => setShowArchive(!showArchive)}
+        >
+          {showArchive ? '🧠 Back to Inbox' : `📦 Archive${archivedItems.length > 0 ? ` (${archivedItems.length})` : ''}`}
+        </EmberButton>
+        <EmberButton
           variant={selectionMode ? 'primary' : 'ghost'}
           size="sm"
-          onClick={() => {
-            setSelectionMode(!selectionMode);
-            if (selectionMode) setSelectedIds(new Set());
-          }}
+          onClick={() => { setSelectionMode(!selectionMode); if (selectionMode) setSelectedIds(new Set()); }}
         >
           {selectionMode ? '✕ Cancel' : '☑️ Select'}
         </EmberButton>
       </div>
 
       {/* Subtitle */}
-      <p
-        style={{
-          fontSize: typography.fontSize.caption,
-          color: color.text.secondary,
-          margin: '-8px 0 16px 0',
-        }}
-      >
-        Everything lands here. Process, promote, or park it.
+      <p style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, margin: '-8px 0 16px 0' }}>
+        {showArchive ? 'Archived items. Unarchive to bring them back.' : 'Everything lands here. Process, promote, or park it.'}
       </p>
 
       {/* Filter Pills */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
         {FILTER_OPTIONS.map(({ key, label, icon, variant }) => (
-          <GlassPill
-            key={key}
-            variant={variant}
-            size="sm"
-            active={filter === key}
-            onClick={() => setFilter(key)}
-          >
+          <GlassPill key={key} variant={variant} size="sm" active={filter === key} onClick={() => setFilter(key)}>
             {icon && <span className="mr-1">{icon}</span>}
             {label}
-            {key !== 'all' && typeCounts[key] ? (
-              <span className="ml-1 opacity-60">{typeCounts[key]}</span>
-            ) : null}
+            {key !== 'all' && typeCounts[key] ? <span className="ml-1 opacity-60">{typeCounts[key]}</span> : null}
           </GlassPill>
         ))}
       </div>
@@ -283,13 +264,7 @@ export default function NotesPage(): React.ReactElement {
       <div className="flex items-center gap-2 mb-6 flex-wrap">
         <span style={{ fontSize: typography.fontSize.caption, color: color.text.dim, marginRight: '4px' }}>Journal:</span>
         {JOURNAL_FILTER_OPTIONS.map(({ key, label, icon }) => (
-          <GlassPill
-            key={key}
-            variant="default"
-            size="xs"
-            active={journalFilter === key}
-            onClick={() => setJournalFilter(key)}
-          >
+          <GlassPill key={key} variant="default" size="xs" active={journalFilter === key} onClick={() => setJournalFilter(key)}>
             {icon && <span className="mr-1">{icon}</span>}
             {label}
           </GlassPill>
@@ -302,14 +277,14 @@ export default function NotesPage(): React.ReactElement {
           <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
         </div>
       ) : error ? (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">
-          {error}
-        </div>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 text-red-400">{error}</div>
       ) : (
         <NotesSections
           items={filteredItems}
           onPromote={(item) => setPromoteItem(item)}
           onArchive={handleArchive}
+          onUpdate={handleUpdate}
+          showArchiveView={showArchive}
           selectionMode={selectionMode}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
@@ -318,40 +293,21 @@ export default function NotesPage(): React.ReactElement {
 
       {/* Floating Merge Bar */}
       {selectionMode && selectedIds.size >= 2 && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '80px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 50,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '12px 24px',
-            background: 'rgba(13, 13, 20, 0.95)',
-            backdropFilter: 'blur(20px)',
-            border: `1.5px solid ${color.glass.borderHover}`,
-            borderRadius: '16px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 107, 53, 0.15)',
-          }}
-        >
-          <span style={{ fontSize: typography.fontSize.caption, color: color.text.secondary }}>
-            {selectedIds.size} selected
-          </span>
+        <div style={{
+          position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)', zIndex: 50,
+          display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 24px',
+          background: 'rgba(13, 13, 20, 0.95)', backdropFilter: 'blur(20px)',
+          border: `1.5px solid ${color.glass.borderHover}`, borderRadius: '16px',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 107, 53, 0.15)',
+        }}>
+          <span style={{ fontSize: typography.fontSize.caption, color: color.text.secondary }}>{selectedIds.size} selected</span>
           <EmberButton size="sm" onClick={handleMerge} disabled={isMerging}>
             {isMerging ? '⏳ Merging...' : `🔗 Merge Selected (${selectedIds.size})`}
           </EmberButton>
         </div>
       )}
 
-      {/* Promote Modal */}
-      <PromoteToKanban
-        item={promoteItem}
-        isOpen={!!promoteItem}
-        onClose={() => setPromoteItem(null)}
-        onPromote={handlePromote}
-      />
+      <PromoteToKanban item={promoteItem} isOpen={!!promoteItem} onClose={() => setPromoteItem(null)} onPromote={handlePromote} />
     </div>
   );
 }

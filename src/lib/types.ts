@@ -250,8 +250,16 @@ export type DropType = 'note' | 'idea' | 'link' | 'task' | 'file' | 'unsorted';
 export type DropStatus = 'new' | 'triaged' | 'promoted' | 'archived';
 export type JournalTag = 'discussed' | 'decisions' | 'built' | 'insight' | 'open';
 
+export interface Reply {
+  id: string;
+  content: string;
+  author: 'aaron' | 'orion';
+  createdAt: string;
+}
+
 export interface Drop {
   id: string;
+  shortId?: string;
   type: DropType;
   content: string;
   url?: string;
@@ -259,12 +267,41 @@ export interface Drop {
   status: DropStatus;
   promotedTo?: string; // Kanban card ID if promoted to task
   journalTag?: JournalTag;
+  archived?: boolean;
+  archivedAt?: string;
+  replies?: Reply[];
   createdAt: string;
   updatedAt?: string;
 }
 
 export interface DropsData {
   drops: Drop[];
+  lastUpdated: string;
+}
+
+// A2P Registration Types
+
+export type A2PStatus = 'to_submit' | 'submitted' | 'rejected' | 'rejected_resubmitted' | 'brand_approved' | 'fully_approved';
+export type A2PRegistrationType = 'a2p' | 'toll_free';
+export type A2PBusinessType = 'business' | 'sole_prop';
+
+export interface A2PRegistration {
+  id: string;
+  businessName: string;
+  status: A2PStatus;
+  registrationType: A2PRegistrationType;
+  businessType: A2PBusinessType;
+  dateCreated: string;
+  dateSubmitted: string;
+  dateBrandApproved: string;
+  dateFullyApproved: string;
+  approvalDays: number | null;
+  notes: string;
+  clientId?: string;  // Link to client in clients.json
+}
+
+export interface A2PData {
+  registrations: A2PRegistration[];
   lastUpdated: string;
 }
 
