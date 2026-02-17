@@ -23,7 +23,7 @@ const navGroups: NavGroup[] = [
     label: 'COMMAND DECK',
     items: [
       { label: 'Dashboard', href: '/', icon: '◉' },
-      { label: 'Kanban Board', href: '/kanban', icon: '⚒' },
+      { label: 'Battle Board', href: '/kanban', icon: '⚒' },
     ],
   },
   {
@@ -38,7 +38,7 @@ const navGroups: NavGroup[] = [
     label: 'GROWTH',
     items: [
       { label: 'The Helm', href: '/helm', icon: '🎯' },
-      { label: 'Notes', href: '/notes', icon: '📝' },
+      { label: 'The Anvil', href: '/notes', icon: '🔨' },
     ],
   },
   {

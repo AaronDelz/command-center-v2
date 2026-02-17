@@ -238,7 +238,7 @@ export default function NotesPage(): React.ReactElement {
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <SectionHeading
-            title={showArchive ? 'Archive' : 'Brain Inbox'}
+            title={showArchive ? 'Archive' : 'The Anvil'}
             icon={<span>{showArchive ? '📦' : '🧠'}</span>}
             badge={`${(showArchive ? archivedItems : activeItems).length} items${!showArchive && totalNew > 0 ? ` • ${totalNew} new` : ''}`}
           />
