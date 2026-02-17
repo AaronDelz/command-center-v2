@@ -26,32 +26,29 @@ function sortCards(cards: KanbanCardType[], mode: string): KanbanCardType[] {
       if (b.dueDate) return 1;
       return 0;
     }
-    // priority
     return (priorityOrder[a.priority ?? 'none'] ?? 3) - (priorityOrder[b.priority ?? 'none'] ?? 3);
   });
 }
 
-const columnColors: Record<string, string> = {
-  todo: 'border-t-yellow-400',
-  ondeck: 'border-t-blue-400',
-  doing: 'border-t-purple-500',
-  hold: 'border-t-amber-500',
-  done: 'border-t-green-500',
+const columnConfig: Record<string, { emoji: string; label: string; accentColor: string; glowColor: string; isActive: boolean }> = {
+  todo:   { emoji: '📋', label: 'To Do',    accentColor: '#60a5fa', glowColor: 'rgba(96, 165, 250, 0.3)',  isActive: false },
+  ondeck: { emoji: '🎯', label: 'On Deck',  accentColor: '#ffb347', glowColor: 'rgba(255, 179, 71, 0.3)',  isActive: true },
+  doing:  { emoji: '🔨', label: 'Doing',    accentColor: '#ff6b35', glowColor: 'rgba(255, 107, 53, 0.4)',  isActive: true },
+  hold:   { emoji: '⏳', label: 'Hold',     accentColor: '#fbbf24', glowColor: 'rgba(251, 191, 36, 0.3)',  isActive: false },
+  done:   { emoji: '✅', label: 'Done',     accentColor: '#4ade80', glowColor: 'rgba(74, 222, 128, 0.3)',  isActive: false },
 };
 
 export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all', sortMode = 'default', hideDone = true, onToggleHideDone, onCardClick, onMoveCard }: KanbanColumnProps): React.ReactElement {
   const [isDragOver, setIsDragOver] = useState(false);
-  const topBorder = columnColors[column.id] ?? 'border-t-accent';
   const isDone = column.id === 'done';
-  
-  // Filter cards by owner and client
+  const config = columnConfig[column.id] ?? { emoji: '📋', label: column.title, accentColor: '#60a5fa', glowColor: 'rgba(96, 165, 250, 0.3)', isActive: false };
+
   let filteredCards = ownerFilter === 'all'
     ? column.cards
     : column.cards.filter((card) => card.owner.toLowerCase() === ownerFilter);
   if (clientFilter !== 'all') {
     filteredCards = filteredCards.filter((card) => card.client === clientFilter);
   }
-  // Sort
   filteredCards = sortCards(filteredCards, sortMode);
   const cardCount = filteredCards.length;
   const totalCount = column.cards.length;
@@ -60,38 +57,58 @@ export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all'
     e.preventDefault();
     setIsDragOver(true);
   };
-
-  const handleDragLeave = () => {
-    setIsDragOver(false);
-  };
-
+  const handleDragLeave = () => setIsDragOver(false);
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
     const cardId = e.dataTransfer.getData('cardId');
     const fromColumnId = e.dataTransfer.getData('fromColumnId');
-    
     if (cardId && fromColumnId && onMoveCard) {
       onMoveCard(cardId, fromColumnId, column.id);
     }
   };
 
+  const displayCount = ownerFilter === 'all' && clientFilter === 'all' ? cardCount : `${cardCount}/${totalCount}`;
+
   return (
-    <div 
+    <div
       className="flex flex-col min-w-[75vw] max-w-[75vw] md:min-w-[280px] md:max-w-[280px] snap-start flex-shrink-0"
+      style={{ opacity: isDone ? 0.6 : 1, transition: 'opacity 200ms ease' }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {/* Column Header */}
       <div
-        className={`bg-surface/80 backdrop-blur-sm rounded-t-lg border-t-2 ${topBorder} border-x border-border px-3 py-2`}
+        style={{
+          background: 'rgba(255, 255, 255, 0.03)',
+          backdropFilter: 'blur(20px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+          borderTop: `2px solid ${config.accentColor}`,
+          borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '12px 12px 0 0',
+          padding: '10px 12px',
+          boxShadow: config.isActive ? `0 -2px 12px ${config.glowColor}` : 'none',
+          transition: 'box-shadow 200ms ease',
+        }}
       >
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">
-            {column.title}
-          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-base">{config.emoji}</span>
+            <h3
+              style={{
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                textTransform: 'uppercase' as const,
+                letterSpacing: '0.05em',
+                color: config.isActive ? config.accentColor : '#f0ece6',
+                margin: 0,
+              }}
+            >
+              {config.label}
+            </h3>
+          </div>
           <div className="flex items-center gap-1.5">
             {isDone && onToggleHideDone && (
               <button
@@ -108,22 +125,50 @@ export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all'
                 </svg>
               </button>
             )}
-            <span className="text-xs text-text-muted bg-surface-raised px-2 py-0.5 rounded-full">
-              {ownerFilter === 'all' && clientFilter === 'all' ? cardCount : `${cardCount}/${totalCount}`}
-              {column.maxCards && ` / ${column.maxCards}`}
+            <span
+              style={{
+                fontSize: '0.625rem',
+                fontWeight: 500,
+                color: '#8a8494',
+                background: 'rgba(255, 255, 255, 0.06)',
+                padding: '2px 8px',
+                borderRadius: '9999px',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              {displayCount}
+              {column.maxCards ? ` / ${column.maxCards}` : ''}
             </span>
           </div>
         </div>
       </div>
 
       {/* Cards Container */}
-      <div className={`flex-1 bg-surface/40 backdrop-blur-sm rounded-b-lg border-x border-b border-border p-2 space-y-2 overflow-y-auto max-h-[calc(100vh-240px)] transition-colors ${isDragOver ? 'bg-accent/10 border-accent/50' : ''}`}>
+      <div
+        style={{
+          flex: 1,
+          background: isDragOver ? 'rgba(255, 107, 53, 0.06)' : 'rgba(255, 255, 255, 0.015)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottomLeftRadius: '12px',
+          borderBottomRightRadius: '12px',
+          padding: '8px',
+          maxHeight: 'calc(100vh - 240px)',
+          overflowY: 'auto' as const,
+          transition: 'background 200ms ease, border-color 200ms ease',
+          ...(isDragOver ? { borderColor: 'rgba(255, 107, 53, 0.3)' } : {}),
+        }}
+        className="space-y-2"
+      >
         {isDone && hideDone ? (
-          <div className="text-center text-text-muted text-xs py-4 italic">
+          <div className="text-center text-xs py-4 italic" style={{ color: '#555060' }}>
             {cardCount} completed — click 👁 to show
           </div>
         ) : filteredCards.length === 0 ? (
-          <div className="text-center text-text-muted text-xs py-4 italic">
+          <div className="text-center text-xs py-4 italic" style={{ color: '#555060' }}>
             No cards
           </div>
         ) : (
