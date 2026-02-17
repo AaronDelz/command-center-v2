@@ -61,7 +61,7 @@ export function NotesSections({ items, onPromote, onArchive, onUpdate, showArchi
   );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start w-full">
       <section className="min-h-[200px]">
         <SectionHeading title="Quick Drops" icon={<span>⚡</span>} badge={quickDrops.length} />
         {quickDrops.length === 0 ? <EmptyState message="No drops yet. Drop something in!" /> : renderCards(quickDrops)}

@@ -22,6 +22,8 @@ export interface UnifiedItem {
   journalTag?: JournalTag;
   archived?: boolean;
   archivedAt?: string;
+  seen?: boolean;
+  seenAt?: string;
   replies?: Reply[];
 }
 
@@ -116,16 +118,28 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
       const newTags = editColumn === 'parked' ? ['discuss'] : editColumn === 'questions' ? ['discuss'] : undefined;
       const newType = editColumn === 'questions' ? 'question' as const : item.type;
 
-      await fetch('/api/drops', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: item.id,
-          content: editContent,
-          type: newType,
-          journalTag: editTag || null,
-        }),
-      });
+      if (item.source === 'drop') {
+        await fetch('/api/drops', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: item.id,
+            content: editContent,
+            type: newType,
+            journalTag: editTag || null,
+          }),
+        });
+      } else {
+        await fetch('/api/notes', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: item.id,
+            text: editContent,
+            tags: newTags,
+          }),
+        });
+      }
       onUpdate({ ...item, content: editContent, type: newType, journalTag: (editTag || undefined) as JournalTag | undefined, tags: newTags });
       setEditing(false);
     } catch (err) {
@@ -157,16 +171,39 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
     if (!replyText.trim() || sendingReply) return;
     setSendingReply(true);
     try {
-      const res = await fetch(`/api/drops/${item.id}/reply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: replyText, author: replyAuthor }),
-      });
-      if (res.ok) {
-        const reply = await res.json() as Reply;
-        const updatedReplies = [...(item.replies || []), reply];
-        onUpdate?.({ ...item, replies: updatedReplies });
-        setReplyText('');
+      if (item.source === 'drop') {
+        const res = await fetch(`/api/drops/${item.id}/reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: replyText, author: replyAuthor }),
+        });
+        if (res.ok) {
+          const reply = await res.json() as Reply;
+          const updatedReplies = [...(item.replies || []), reply];
+          onUpdate?.({ ...item, replies: updatedReplies });
+          setReplyText('');
+        }
+      } else {
+        // Notes use a different reply format
+        const res = await fetch('/api/notes', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: item.id,
+            reply: { from: replyAuthor, text: replyText },
+          }),
+        });
+        if (res.ok) {
+          const newReply: Reply = {
+            id: `reply-${Date.now()}`,
+            content: replyText,
+            author: replyAuthor,
+            createdAt: new Date().toISOString(),
+          };
+          const updatedReplies = [...(item.replies || []), newReply];
+          onUpdate?.({ ...item, replies: updatedReplies });
+          setReplyText('');
+        }
       }
     } catch (err) {
       console.error('Reply failed:', err);
@@ -181,11 +218,22 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
       padding="sm"
       className={`group ${isPromoted ? 'opacity-60' : ''}`}
       style={{
+        position: 'relative',
         ...(selected ? { border: `1.5px solid ${color.ember.DEFAULT}`, boxShadow: '0 0 12px rgba(255, 107, 53, 0.15)' } : {}),
         transition: `all ${animation.duration.slow} ${animation.easing.default}`,
         ...(isArchived && !showArchiveView ? { display: 'none' } : {}),
       }}
     >
+      {/* Seen indicator */}
+      {item.seen && (
+        <span
+          title={item.seenAt ? `Seen ${formatRelativeTime(item.seenAt)}` : 'Seen'}
+          style={{
+            position: 'absolute', top: '6px', right: '8px',
+            fontSize: '13px', opacity: 0.7, zIndex: 1,
+          }}
+        >👁️</span>
+      )}
       <div className="flex items-start gap-3">
         {/* Selection checkbox */}
         {selectionMode && (
@@ -362,7 +410,7 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
           )}
 
           {/* Expanded: Reply Input */}
-          {expanded && item.source === 'drop' && (
+          {expanded && (
             <div className="mt-3 flex flex-col gap-2" style={{
               ...((!item.replies || item.replies.length === 0) ? { borderTop: `1px solid ${color.glass.border}`, paddingTop: '12px' } : {}),
             }}>
@@ -417,11 +465,9 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
                   <EmberButton variant="ghost" size="sm" onClick={handleArchiveToggle} disabled={archiving}>
                     {archiving ? '⏳' : '📦'}
                   </EmberButton>
-                  {item.source === 'drop' && (
-                    <EmberButton variant="ghost" size="sm" onClick={() => { setEditing(true); setExpanded(true); }}>
-                      ✏️
-                    </EmberButton>
-                  )}
+                  <EmberButton variant="ghost" size="sm" onClick={() => { setEditing(true); setExpanded(true); }}>
+                    ✏️
+                  </EmberButton>
                 </>
               )}
             </div>

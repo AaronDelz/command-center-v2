@@ -147,6 +147,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
       promotedTo?: string;
       journalTag?: JournalTag | null;
       archived?: boolean;
+      seen?: boolean;
       column?: string;
     };
 
@@ -206,6 +207,16 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
         updatedDrop.archivedAt = new Date().toISOString();
       } else {
         delete updatedDrop.archivedAt;
+      }
+    }
+
+    // Seen support
+    if (body.seen !== undefined) {
+      updatedDrop.seen = body.seen;
+      if (body.seen) {
+        updatedDrop.seenAt = new Date().toISOString();
+      } else {
+        delete updatedDrop.seenAt;
       }
     }
 

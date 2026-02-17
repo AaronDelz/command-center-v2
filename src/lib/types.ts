@@ -269,6 +269,8 @@ export interface Drop {
   journalTag?: JournalTag;
   archived?: boolean;
   archivedAt?: string;
+  seen?: boolean;
+  seenAt?: string;
   replies?: Reply[];
   createdAt: string;
   updatedAt?: string;

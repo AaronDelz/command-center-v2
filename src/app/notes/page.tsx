@@ -11,6 +11,18 @@ import type { UnifiedItem } from '@/components/notes/DropCard';
 type FilterType = 'all' | 'note' | 'idea' | 'link' | 'task' | 'file' | 'question';
 type JournalFilterType = 'all' | JournalTag;
 
+function generateNoteShortId(noteId: string): string {
+  // Deterministic short ID from note ID
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+  let hash = 0;
+  for (let i = 0; i < noteId.length; i++) {
+    hash = ((hash << 5) - hash) + noteId.charCodeAt(i);
+    hash |= 0;
+  }
+  const abs = Math.abs(hash);
+  return chars[abs % 24] + ((abs >> 5) % 10) + chars[(abs >> 9) % 24];
+}
+
 function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
   const items: UnifiedItem[] = [];
 
@@ -30,6 +42,8 @@ function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
       archived: drop.archived,
       archivedAt: drop.archivedAt,
       replies: drop.replies,
+      seen: drop.seen,
+      seenAt: drop.seenAt,
     });
   }
 
@@ -39,6 +53,7 @@ function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
 
     items.push({
       id: note.id,
+      shortId: generateNoteShortId(note.id),
       type,
       content: note.text,
       status: note.done ? 'archived' : 'new',
@@ -218,7 +233,7 @@ export default function NotesPage(): React.ReactElement {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-8">
+    <div className="w-full mx-auto p-4 md:px-6 md:py-8">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex-1">

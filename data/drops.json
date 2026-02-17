@@ -6,7 +6,7 @@
       "content": "https://youtu.be/Q7r--i9lLck?si=6jT_kiR-NUZ4pYO8\n\n---\n\nhttps://gist.github.com/mberman84/065631c62d6d8f30ecb14748c00fc6d9\n\n---\n\nFile upload\n\n---\n\nFile upload\n\n---\n\nFile upload",
       "status": "archived",
       "createdAt": "2026-02-17T08:02:54.643Z",
-      "updatedAt": "2026-02-17T21:58:49.724Z",
+      "updatedAt": "2026-02-17T22:30:13.678Z",
       "url": "https://youtu.be/Q7r--i9lLck?si=6jT_kiR-NUZ4pYO8",
       "files": [
         "~/Documents/inbox/OpenClaw_Ebook_-_Final.pdf",
@@ -29,7 +29,9 @@
         "~/Documents/inbox/IMG_3926.png",
         "~/Documents/inbox/IMG_3927.png"
       ],
-      "shortId": "S3N"
+      "shortId": "S3N",
+      "seen": true,
+      "seenAt": "2026-02-17T22:30:13.678Z"
     },
     {
       "id": "drop-1771352133891",
@@ -70,5 +72,5 @@
       "shortId": "X7R"
     }
   ],
-  "lastUpdated": "2026-02-17T22:16:31.880Z"
+  "lastUpdated": "2026-02-17T22:30:13.678Z"
 }
