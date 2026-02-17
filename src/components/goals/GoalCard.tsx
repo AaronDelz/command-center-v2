@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { Goal, GoalCategory } from '@/lib/types';
+import { GlassCard, EmberButton } from '@/components/ui';
 
 const CATEGORY_COLORS: Record<GoalCategory, { bg: string; text: string; glow: string; border: string }> = {
   financial: { bg: 'bg-emerald-500/15', text: 'text-emerald-400', glow: 'shadow-emerald-500/30', border: 'border-emerald-500/30' },
@@ -55,10 +56,9 @@ export function GoalCard({ goal, onUpdate }: GoalCardProps): React.ReactElement 
   }
 
   return (
-    <div
+    <GlassCard
+      padding="none"
       className={`
-        bg-surface/80 backdrop-blur-sm rounded-xl border border-border
-        hover:border-opacity-60 transition-all duration-300
         ${goal.status === 'completed' ? 'ring-1 ring-amber-500/30' : ''}
         ${goal.status === 'paused' ? 'opacity-60' : ''}
       `}
@@ -175,20 +175,21 @@ export function GoalCard({ goal, onUpdate }: GoalCardProps): React.ReactElement 
                   onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCurrent(); if (e.key === 'Escape') setIsEditing(false); }}
                   autoFocus
                 />
-                <button onClick={handleSaveCurrent} className="px-2 py-1.5 text-xs bg-accent/20 text-accent rounded hover:bg-accent/30">Save</button>
-                <button onClick={() => setIsEditing(false)} className="px-2 py-1.5 text-xs text-text-muted hover:text-foreground">Cancel</button>
+                <EmberButton onClick={handleSaveCurrent} variant="primary" size="sm">Save</EmberButton>
+                <EmberButton onClick={() => setIsEditing(false)} variant="ghost" size="sm">Cancel</EmberButton>
               </>
             ) : (
-              <button
+              <EmberButton
                 onClick={(e) => { e.stopPropagation(); setIsEditing(true); setEditCurrent(goal.current.toString()); }}
-                className="px-3 py-1.5 text-xs bg-surface-raised border border-border rounded hover:border-accent/30 text-text-muted hover:text-foreground transition-colors"
+                variant="secondary"
+                size="sm"
               >
                 Update Progress
-              </button>
+              </EmberButton>
             )}
           </div>
         </div>
       )}
-    </div>
+    </GlassCard>
   );
 }

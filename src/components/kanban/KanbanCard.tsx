@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { KanbanCard as KanbanCardType } from '@/lib/types';
+import { GlassCard } from '@/components/ui';
 
 interface KanbanCardProps {
   card: KanbanCardType;
@@ -46,16 +47,21 @@ export function KanbanCard({ card, columnId, onClick }: KanbanCardProps): React.
   };
 
   return (
-    <div
-      className={`group bg-surface-raised/90 backdrop-blur-sm rounded-lg border border-border hover:border-accent/50 p-3 transition-all duration-200 hover:shadow-lg hover:shadow-accent/10 cursor-grab active:cursor-grabbing active:scale-[0.98] min-h-[44px] ${isDragging ? 'opacity-50 border-accent' : ''}`}
+    <GlassCard
+      padding="none"
+      hover={false}
+      className={`group transition-all duration-200 cursor-grab active:cursor-grabbing active:scale-[0.98] min-h-[44px] ${isDragging ? 'opacity-50' : ''}`}
       onClick={onClick}
-      onKeyDown={handleKeyDown}
-      draggable
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      role="button"
-      tabIndex={0}
     >
+      <div
+        onKeyDown={handleKeyDown}
+        draggable
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        role="button"
+        tabIndex={0}
+        className="p-3 w-full h-full"
+      >
       {/* Priority indicator bar */}
       {showPriority && (
         <div className={`h-1 w-full rounded-full mb-2 ${priorityColors[priority]}`} />
@@ -110,7 +116,8 @@ export function KanbanCard({ card, columnId, onClick }: KanbanCardProps): React.
             {priorityLabels[priority]}
           </span>
         )}
+        </div>
       </div>
-    </div>
+    </GlassCard>
   );
 }

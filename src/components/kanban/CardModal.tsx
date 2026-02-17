@@ -110,6 +110,7 @@ export function CardModal({
   const ownerOptions = [
     { value: 'aaron', label: 'Aaron' },
     { value: 'orion', label: 'Orion' },
+    { value: 'none', label: 'Unassigned' },
   ];
 
   const footer = isEditing ? (

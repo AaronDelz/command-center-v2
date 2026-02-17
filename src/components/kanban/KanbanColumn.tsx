@@ -6,7 +6,7 @@ import { KanbanCard } from './KanbanCard';
 
 interface KanbanColumnProps {
   column: KanbanColumnType;
-  ownerFilter?: 'all' | 'aaron' | 'orion';
+  ownerFilter?: 'all' | 'aaron' | 'orion' | 'none';
   clientFilter?: string;
   sortMode?: 'default' | 'dueDate' | 'priority';
   hideDone?: boolean;
@@ -32,12 +32,10 @@ function sortCards(cards: KanbanCardType[], mode: string): KanbanCardType[] {
 }
 
 const columnColors: Record<string, string> = {
-  ideas: 'border-t-yellow-400',
-  bench: 'border-t-orange-400',
-  'on-deck': 'border-t-blue-400',
-  'in-progress': 'border-t-purple-500',
-  blocked: 'border-t-red-500',
-  review: 'border-t-cyan-400',
+  todo: 'border-t-yellow-400',
+  ondeck: 'border-t-blue-400',
+  doing: 'border-t-purple-500',
+  hold: 'border-t-amber-500',
   done: 'border-t-green-500',
 };
 

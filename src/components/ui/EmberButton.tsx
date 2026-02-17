@@ -10,7 +10,7 @@ interface EmberButtonProps {
   children: React.ReactNode;
   variant?: Variant;
   size?: Size;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
   className?: string;
   type?: 'button' | 'submit' | 'reset';

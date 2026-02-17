@@ -1,5 +1,7 @@
 'use client';
 
+import { GlassCard } from '@/components/ui';
+
 interface Metric {
   actual: number;
   target: number;
@@ -76,9 +78,10 @@ export function WeeklyScorecard({ weekOf, metrics }: WeeklyScorecardProps) {
         {metricConfig.map(({ key, label, icon }) => {
           const m = metrics[key as keyof typeof metrics];
           return (
-            <div
+            <GlassCard
               key={key}
-              className="bg-surface/80 backdrop-blur-sm rounded-xl border border-border p-4 flex flex-col items-center gap-2 hover:border-accent/30 transition-colors"
+              padding="sm"
+              className="flex flex-col items-center gap-2"
             >
               <div className="relative">
                 <ProgressRing actual={m.actual} target={m.target} />
@@ -90,7 +93,7 @@ export function WeeklyScorecard({ weekOf, metrics }: WeeklyScorecardProps) {
               <span className={`text-sm font-bold ${getStatusColor(m.actual, m.target)}`}>
                 {m.actual}/{m.target}
               </span>
-            </div>
+            </GlassCard>
           );
         })}
       </div>

@@ -13,7 +13,7 @@ interface ModalState {
   isNew: boolean;
 }
 
-type OwnerFilter = 'all' | 'aaron' | 'orion';
+type OwnerFilter = 'all' | 'aaron' | 'orion' | 'none';
 type SortMode = 'default' | 'dueDate' | 'priority';
 
 export function KanbanBoard(): React.ReactElement {
@@ -259,7 +259,7 @@ export function KanbanBoard(): React.ReactElement {
 
           {/* Owner Filter */}
           <div className="flex items-center gap-1 bg-surface-raised/60 rounded-lg p-1">
-            {(['all', 'aaron', 'orion'] as const).map((filter) => (
+            {(['all', 'aaron', 'orion', 'none'] as const).map((filter) => (
               <button
                 key={filter}
                 onClick={() => setOwnerFilter(filter)}
@@ -269,7 +269,7 @@ export function KanbanBoard(): React.ReactElement {
                     : 'text-text-muted hover:text-foreground hover:bg-surface-raised'
                 }`}
               >
-                {filter}
+                {filter === 'none' ? 'unassigned' : filter}
               </button>
             ))}
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { GlassCard, EmberButton } from '@/components/ui';
 
 type DropType = 'idea' | 'link' | 'task' | 'note';
 
@@ -56,10 +57,11 @@ export function DropBox(): React.ReactElement {
   );
 
   return (
-    <div
+    <GlassCard
+      padding="none"
       className={`
-        bg-surface/80 backdrop-blur-sm rounded-xl border transition-all duration-300
-        ${flash ? 'border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'border-border'}
+        transition-all duration-300
+        ${flash ? 'ring-1 ring-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)]' : ''}
       `}
     >
       <div className="p-4">
@@ -121,17 +123,16 @@ export function DropBox(): React.ReactElement {
             }}
           />
           {text.trim() && (
-            <button
-              onClick={handleSubmit}
-              disabled={isSending}
-              className="
-                absolute right-2 bottom-2 px-2.5 py-1 rounded-md text-xs font-medium
-                bg-accent/20 text-accent hover:bg-accent/30 active:scale-95
-                transition-all duration-200 disabled:opacity-50
-              "
-            >
-              {isSending ? '...' : '⏎'}
-            </button>
+            <div className="absolute right-2 bottom-2">
+              <EmberButton
+                onClick={handleSubmit}
+                disabled={isSending}
+                variant="ghost"
+                size="sm"
+              >
+                {isSending ? '...' : '⏎'}
+              </EmberButton>
+            </div>
           )}
         </div>
 
@@ -139,6 +140,6 @@ export function DropBox(): React.ReactElement {
           <p className="text-[10px] text-text-muted mt-1.5 text-right">⌘+Enter to send</p>
         )}
       </div>
-    </div>
+    </GlassCard>
   );
 }

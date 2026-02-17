@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { ActivityEntry } from '@/lib/types';
+import { GlassCard, GlassPill } from '@/components/ui';
 
 interface ActivityFeedProps {
   entries: ActivityEntry[];
@@ -91,34 +92,23 @@ export function ActivityFeed({ entries }: ActivityFeedProps): React.ReactElement
       {/* Filter Pills */}
       {uniqueTypes.length > 1 && (
         <div className="flex flex-wrap gap-2 -mx-4 px-4 overflow-x-auto pb-2 md:mx-0 md:px-0">
-          <button
+          <GlassPill
+            variant="default"
+            active={filter === null}
             onClick={() => setFilter(null)}
-            className={`
-              px-3 py-2 min-h-[36px] rounded-full text-sm font-medium transition-all active:scale-95 flex-shrink-0
-              ${filter === null
-                ? 'bg-accent text-background'
-                : 'bg-surface-raised/60 text-text-muted hover:text-foreground hover:bg-surface-raised'
-              }
-            `}
           >
             All
-          </button>
+          </GlassPill>
           {uniqueTypes.map((type) => (
-            <button
+            <GlassPill
               key={type}
+              variant="default"
+              active={filter === type}
               onClick={() => setFilter(type)}
-              className={`
-                px-3 py-2 min-h-[36px] rounded-full text-sm font-medium transition-all active:scale-95 flex-shrink-0
-                flex items-center gap-1.5
-                ${filter === type
-                  ? 'bg-accent text-background'
-                  : 'bg-surface-raised/60 text-text-muted hover:text-foreground hover:bg-surface-raised'
-                }
-              `}
             >
               <span>{getTypeIcon(type)}</span>
               <span className="capitalize">{type}</span>
-            </button>
+            </GlassPill>
           ))}
         </div>
       )}
@@ -157,7 +147,7 @@ export function ActivityFeed({ entries }: ActivityFeedProps): React.ReactElement
                   </div>
 
                   {/* Content */}
-                  <div className="flex-1 min-w-0 bg-surface-raised/60 backdrop-blur-sm border border-border rounded-xl p-4 transition-all hover:border-accent/30 hover:bg-surface-raised/80">
+                  <GlassCard className="flex-1 min-w-0" padding="sm">
                     <div className="flex items-start justify-between gap-4">
                       <p className="text-foreground break-words">
                         {entry.description}
@@ -171,7 +161,7 @@ export function ActivityFeed({ entries }: ActivityFeedProps): React.ReactElement
                         {entry.details}
                       </p>
                     )}
-                  </div>
+                  </GlassCard>
                 </div>
               </li>
             );

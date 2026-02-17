@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { Goal, GoalsData, GoalCategory } from '@/lib/types';
+import { GlassCard } from '@/components/ui';
 
 const CATEGORY_COLORS: Record<GoalCategory, string> = {
   financial: 'text-emerald-400',
@@ -52,7 +53,7 @@ export function GoalsSummary(): React.ReactElement {
 
   if (loading) {
     return (
-      <div className="bg-surface/80 backdrop-blur-sm rounded-xl border border-border p-5">
+      <GlassCard padding="md">
         <div className="flex items-center gap-2 mb-4">
           <span className="text-lg">🎯</span>
           <h2 className="text-base font-semibold text-foreground">The Helm</h2>
@@ -60,20 +61,20 @@ export function GoalsSummary(): React.ReactElement {
         <div className="h-24 flex items-center justify-center">
           <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
         </div>
-      </div>
+      </GlassCard>
     );
   }
 
   if (goals.length === 0) {
     return (
       <Link href="/goals" className="block">
-        <div className="bg-surface/80 backdrop-blur-sm rounded-xl border border-border p-5 hover:border-accent/30 transition-colors">
+        <GlassCard padding="md" hover>
           <div className="flex items-center gap-2 mb-2">
             <span className="text-lg">🎯</span>
             <h2 className="text-base font-semibold text-foreground">The Helm</h2>
           </div>
           <p className="text-sm text-text-muted">No active goals. Set your course →</p>
-        </div>
+        </GlassCard>
       </Link>
     );
   }
@@ -83,7 +84,7 @@ export function GoalsSummary(): React.ReactElement {
   );
 
   return (
-    <div className="bg-surface/80 backdrop-blur-sm rounded-xl border border-border p-5">
+    <GlassCard padding="md">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -129,6 +130,6 @@ export function GoalsSummary(): React.ReactElement {
           );
         })}
       </div>
-    </div>
+    </GlassCard>
   );
 }

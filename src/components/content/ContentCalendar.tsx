@@ -1,5 +1,7 @@
 'use client';
 
+import { GlassCard } from '@/components/ui';
+
 interface Task {
   text: string;
   done: boolean;
@@ -40,14 +42,16 @@ export function ContentCalendar({ schedule, onToggleTask }: ContentCalendarProps
           const isPast = date < today;
 
           return (
-            <div
+            <GlassCard
               key={date}
-              className={`bg-surface/80 backdrop-blur-sm rounded-xl border p-3 transition-all ${
+              padding="sm"
+              hover={false}
+              className={`transition-all ${
                 isToday
-                  ? 'border-accent ring-1 ring-accent/30'
+                  ? 'ring-1 ring-accent/30'
                   : allDone
-                  ? 'border-green-500/30'
-                  : 'border-border'
+                  ? 'ring-1 ring-green-500/30'
+                  : ''
               }`}
             >
               <div className="flex items-center gap-1.5 mb-2">
@@ -99,7 +103,7 @@ export function ContentCalendar({ schedule, onToggleTask }: ContentCalendarProps
               ) : (
                 <p className="text-[10px] text-text-muted italic">No tasks</p>
               )}
-            </div>
+            </GlassCard>
           );
         })}
       </div>
