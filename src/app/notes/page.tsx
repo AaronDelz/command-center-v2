@@ -31,6 +31,7 @@ function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
       id: drop.id,
       shortId: drop.shortId,
       type: drop.type === 'unsorted' ? 'unsorted' : drop.type,
+      title: drop.title,
       content: drop.content,
       url: drop.url,
       files: drop.files,

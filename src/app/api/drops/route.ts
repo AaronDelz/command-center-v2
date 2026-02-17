@@ -76,6 +76,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const body = await request.json() as {
       type: DropType;
       content: string;
+      title?: string;
       url?: string;
       files?: string[];
       journalTag?: JournalTag;
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       createdAt: new Date().toISOString(),
     };
 
+    if (body.title) newDrop.title = body.title.trim();
     if (body.url) newDrop.url = body.url;
     if (body.files && body.files.length > 0) newDrop.files = body.files;
     if (body.journalTag) {
@@ -142,6 +144,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     const body = await request.json() as {
       id: string;
       type?: DropType;
+      title?: string | null;
       content?: string;
       status?: Drop['status'];
       promotedTo?: string;
@@ -179,6 +182,14 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
         );
       }
       updatedDrop.type = body.type;
+    }
+
+    if (body.title !== undefined) {
+      if (body.title === null || body.title === '') {
+        delete updatedDrop.title;
+      } else {
+        updatedDrop.title = body.title.trim();
+      }
     }
 
     if (body.content) {

@@ -261,6 +261,7 @@ export interface Drop {
   id: string;
   shortId?: string;
   type: DropType;
+  title?: string;
   content: string;
   url?: string;
   files?: string[];

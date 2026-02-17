@@ -10,6 +10,7 @@ export interface UnifiedItem {
   id: string;
   shortId?: string;
   type: 'note' | 'idea' | 'link' | 'task' | 'file' | 'question' | 'unsorted';
+  title?: string;
   content: string;
   url?: string;
   files?: string[];
@@ -93,6 +94,7 @@ interface DropCardProps {
 export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView, selectionMode, selected, onToggleSelect }: DropCardProps): React.ReactElement {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(item.title || '');
   const [editContent, setEditContent] = useState(item.content);
   const [editColumn, setEditColumn] = useState(getColumnForItem(item));
   const [editTag, setEditTag] = useState<string>(item.journalTag || '');
@@ -124,6 +126,7 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             id: item.id,
+            title: editTitle.trim() || null,
             content: editContent,
             type: newType,
             journalTag: editTag || null,
@@ -140,7 +143,7 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
           }),
         });
       }
-      onUpdate({ ...item, content: editContent, type: newType, journalTag: (editTag || undefined) as JournalTag | undefined, tags: newTags });
+      onUpdate({ ...item, title: editTitle.trim() || undefined, content: editContent, type: newType, journalTag: (editTag || undefined) as JournalTag | undefined, tags: newTags });
       setEditing(false);
     } catch (err) {
       console.error('Save failed:', err);
@@ -296,6 +299,21 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
           {/* Content text */}
           {editing ? (
             <div className="flex flex-col gap-3 mt-2">
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Title (optional)"
+                style={{
+                  width: '100%',
+                  background: color.bg.surface, backdropFilter: glass.blur.card,
+                  border: `1.5px solid ${color.glass.borderFocus}`, borderRadius: radius.lg,
+                  color: color.text.primary, fontFamily: typography.fontFamily.body,
+                  fontSize: '1rem', fontWeight: typography.fontWeight.semibold,
+                  padding: '8px 14px', outline: 'none',
+                  boxShadow: `${shadow.innerShine}, 0 0 12px rgba(255, 107, 53, 0.12)`,
+                }}
+              />
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
@@ -329,23 +347,32 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
                 <EmberButton size="sm" onClick={handleSave} disabled={saving}>
                   {saving ? '⏳ Saving...' : '💾 Save'}
                 </EmberButton>
-                <EmberButton variant="ghost" size="sm" onClick={() => { setEditing(false); setEditContent(item.content); }}>
+                <EmberButton variant="ghost" size="sm" onClick={() => { setEditing(false); setEditTitle(item.title || ''); setEditContent(item.content); }}>
                   Cancel
                 </EmberButton>
               </div>
             </div>
           ) : (
-            <p
-              style={{
-                fontSize: typography.fontSize.body, color: color.text.primary,
-                lineHeight: typography.lineHeight.normal, margin: 0, wordBreak: 'break-word',
-                cursor: 'pointer',
-              }}
-              className={expanded ? '' : 'line-clamp-3'}
-              onClick={() => setExpanded(!expanded)}
-            >
-              {item.content}
-            </p>
+            <div style={{ cursor: 'pointer' }} onClick={() => setExpanded(!expanded)}>
+              {item.title && (
+                <p style={{
+                  fontSize: '1rem', fontWeight: typography.fontWeight.semibold,
+                  color: '#f0f0f5', lineHeight: typography.lineHeight.normal,
+                  margin: '0 0 2px 0', wordBreak: 'break-word',
+                }}>
+                  {item.title}
+                </p>
+              )}
+              <p
+                style={{
+                  fontSize: typography.fontSize.body, color: item.title ? color.text.secondary : color.text.primary,
+                  lineHeight: typography.lineHeight.normal, margin: 0, wordBreak: 'break-word',
+                }}
+                className={expanded ? '' : (item.title ? 'line-clamp-2' : 'line-clamp-3')}
+              >
+                {item.content}
+              </p>
+            </div>
           )}
 
           {/* Link preview */}
