@@ -123,6 +123,21 @@ export function StatusOrb({ state = 'idle' }: StatusOrbProps): React.ReactElemen
             constellationAlpha: 0.9,
             particleCount: 0,
           };
+        default:
+          return {
+            baseRadius: 34,
+            blobAmp: 2.5,
+            blobSpeed: 0.3,
+            pulseAmp: 2,
+            pulseSpeed: 0.6,
+            nebulaColor1: [88, 28, 135],
+            nebulaColor2: [30, 27, 75],
+            nebulaColor3: [59, 7, 100],
+            glowAlpha: 0.2,
+            starBrightness: 0.6,
+            constellationAlpha: 0.3,
+            particleCount: 0,
+          };
       }
     };
 

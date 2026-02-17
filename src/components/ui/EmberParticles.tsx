@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { color, limits, zIndex } from '@/styles/tokens';
 
 interface EmberParticlesProps {
@@ -8,14 +8,25 @@ interface EmberParticlesProps {
   className?: string;
 }
 
+interface Particle {
+  id: number;
+  left: number;
+  size: number;
+  delay: number;
+  duration: number;
+  opacity: number;
+  drift: number;
+}
+
 export function EmberParticles({
   count = 15,
   className = '',
-}: EmberParticlesProps): React.ReactElement {
-  const particleCount = Math.min(count, limits.maxEmberParticles);
+}: EmberParticlesProps): React.ReactElement | null {
+  const [particles, setParticles] = useState<Particle[]>([]);
 
-  const particles = useMemo(
-    () =>
+  useEffect(() => {
+    const particleCount = Math.min(count, limits.maxEmberParticles);
+    setParticles(
       Array.from({ length: particleCount }, (_, i) => ({
         id: i,
         left: Math.random() * 100,
@@ -24,9 +35,11 @@ export function EmberParticles({
         duration: 6 + Math.random() * 8,
         opacity: 0.15 + Math.random() * 0.35,
         drift: (Math.random() - 0.5) * 40,
-      })),
-    [particleCount]
-  );
+      }))
+    );
+  }, [count]);
+
+  if (particles.length === 0) return null;
 
   return (
     <div

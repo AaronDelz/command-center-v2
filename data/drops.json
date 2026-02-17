@@ -1,6 +1,16 @@
 {
   "drops": [
     {
+      "id": "drop-1771352133891",
+      "type": "file",
+      "content": "File upload",
+      "status": "new",
+      "createdAt": "2026-02-17T18:15:33.891Z",
+      "files": [
+        "~/Documents/inbox/Alex_Finn_-_6_OpenClaw_use_cases_I_promise_will_change_your_life.zip"
+      ]
+    },
+    {
       "id": "drop-1771316672673",
       "type": "file",
       "content": "File upload",
@@ -87,5 +97,5 @@
       "createdAt": "2026-02-16T20:32:50.900Z"
     }
   ],
-  "lastUpdated": "2026-02-17T08:24:32.673Z"
+  "lastUpdated": "2026-02-17T18:15:33.891Z"
 }

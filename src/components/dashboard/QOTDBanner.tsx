@@ -36,32 +36,25 @@ export function QOTDBanner(): React.ReactElement {
       style={{
         position: 'relative',
         background: color.bg.surface,
-        borderRadius: radius.lg,
-        padding: '16px 20px',
+        backdropFilter: 'blur(20px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+        border: `1px solid ${color.glass.border}`,
+        borderRadius: '14px',
+        padding: '18px 22px',
         borderLeft: `3px solid ${color.ember.DEFAULT}`,
+        boxShadow: '0 6px 24px rgba(0,0,0,0.3)',
         overflow: 'hidden',
+        animation: `qotd-pulse 5s ease-in-out infinite`,
       }}
     >
-      {/* Ember pulse on left border */}
-      <div
-        style={{
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: '3px',
-          background: `linear-gradient(180deg, ${color.ember.DEFAULT}, ${color.ember.flame})`,
-          animation: `glow-breathe ${animation.duration.ambient} ${animation.easing.inOut} infinite`,
-        }}
-      />
 
       <p
         style={{
-          fontSize: typography.fontSize.body,
+          fontSize: '0.88rem',
           fontStyle: 'italic',
           color: color.text.primary,
           margin: 0,
-          lineHeight: typography.lineHeight.relaxed,
+          lineHeight: '1.6',
         }}
       >
         &ldquo;{quote.text}&rdquo;
@@ -69,7 +62,7 @@ export function QOTDBanner(): React.ReactElement {
       <span
         style={{
           fontSize: typography.fontSize.caption,
-          color: color.text.dim,
+          color: color.text.accent,
           marginTop: '4px',
           display: 'block',
         }}

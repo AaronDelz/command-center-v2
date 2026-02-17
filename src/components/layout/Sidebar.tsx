@@ -81,7 +81,7 @@ export function Sidebar(): React.ReactElement {
 
   useEffect(() => { setIsOpen(false); }, [pathname]);
 
-  const orbStatus = status ? mapStatus(status.state) : 'online';
+  const orbStatus = status ? mapStatus(status.state) : 'idle';
 
   return (
     <>

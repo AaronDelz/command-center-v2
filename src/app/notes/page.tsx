@@ -39,7 +39,7 @@ function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
       type,
       content: note.text,
       status: note.done ? 'archived' : 'new',
-      createdAt: note.createdAt || (note as Record<string, unknown>).created as string || new Date().toISOString(),
+      createdAt: note.createdAt || new Date().toISOString(),
       tags: note.tags,
       source: 'note',
       done: note.done,
@@ -179,7 +179,7 @@ export default function NotesPage(): React.ReactElement {
   ];
 
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-8">
+    <div className="max-w-7xl mx-auto p-4 md:p-8">
       {/* Header */}
       <SectionHeading
         title="Brain Inbox"

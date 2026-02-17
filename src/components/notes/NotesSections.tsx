@@ -50,9 +50,9 @@ export function NotesSections({ items, onPromote, onArchive }: NotesSectionsProp
   );
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Quick Drops — newest first */}
-      <section>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+      {/* Quick Drops */}
+      <section className="min-h-[200px]">
         <SectionHeading
           title="Quick Drops"
           icon={<span>⚡</span>}
@@ -75,13 +75,15 @@ export function NotesSections({ items, onPromote, onArchive }: NotesSectionsProp
       </section>
 
       {/* Parked Conversations */}
-      {parkedConversations.length > 0 && (
-        <section>
-          <SectionHeading
-            title="Parked Conversations"
-            icon={<span>🗣️</span>}
-            badge={parkedConversations.length}
-          />
+      <section className="min-h-[200px]">
+        <SectionHeading
+          title="Parked Conversations"
+          icon={<span>🗣️</span>}
+          badge={parkedConversations.length}
+        />
+        {parkedConversations.length === 0 ? (
+          <EmptyState message="No parked conversations yet." />
+        ) : (
           <div className="flex flex-col gap-3">
             {parkedConversations.map((item) => (
               <DropCard
@@ -92,17 +94,19 @@ export function NotesSections({ items, onPromote, onArchive }: NotesSectionsProp
               />
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* Open Questions */}
-      {openQuestions.length > 0 && (
-        <section>
-          <SectionHeading
-            title="Open Questions"
-            icon={<span>❓</span>}
-            badge={openQuestions.length}
-          />
+      <section className="min-h-[200px]">
+        <SectionHeading
+          title="Open Questions"
+          icon={<span>❓</span>}
+          badge={openQuestions.length}
+        />
+        {openQuestions.length === 0 ? (
+          <EmptyState message="No open questions." />
+        ) : (
           <div className="flex flex-col gap-3">
             {openQuestions.map((item) => (
               <DropCard
@@ -113,8 +117,8 @@ export function NotesSections({ items, onPromote, onArchive }: NotesSectionsProp
               />
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
     </div>
   );
 }

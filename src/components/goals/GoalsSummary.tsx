@@ -123,7 +123,7 @@ export function GoalsSummary(): React.ReactElement {
               <div className="h-1.5 bg-border/50 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full bg-gradient-to-r ${barColor} transition-all duration-700`}
-                  style={{ width: `${pct}%`, boxShadow: `0 0 8px ${glow}` }}
+                  style={{ width: `${pct}%`, boxShadow: `0 0 8px ${glow}`, animation: 'bar-shimmer 3s ease-in-out infinite' }}
                 />
               </div>
             </div>
