@@ -69,8 +69,9 @@ function AddClientModal({ onClose, onAdd }: { onClose: () => void; onAdd: (clien
 
   const paymentOptions = [
     { value: 'pending', label: 'Pending' },
-    { value: 'sent', label: 'Sent for Payment' },
+    { value: 'invoiceSent', label: 'Invoice Sent' },
     { value: 'received', label: 'Received' },
+    { value: 'completed', label: 'Completed' },
   ];
 
   return (

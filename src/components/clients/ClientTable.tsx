@@ -7,9 +7,10 @@ import type { Client, ClientStatus, PaymentStatus, TimeEntriesData, TimeEntry } 
 // ─── Status Config ──────────────────────────────────────────────
 
 const PAYMENT_STATUS_CONFIG: Record<PaymentStatus, { label: string; color: string; bg: string }> = {
-  pending:  { label: 'Pending',      color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.15)' },
-  sent:     { label: 'Sent for Payment', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
-  received: { label: 'Received',     color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' },
+  pending:     { label: 'Pending',      color: '#9ca3af', bg: 'rgba(156, 163, 175, 0.15)' },
+  invoiceSent: { label: 'Invoice Sent', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
+  received:    { label: 'Received',     color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)' },
+  completed:   { label: 'Completed',    color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)' },
 };
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -113,10 +114,12 @@ function ExpandedDetails({
   }
 
   async function handlePaymentStatusCycle() {
-    const order: PaymentStatus[] = ['pending', 'sent', 'received'];
+    const order: PaymentStatus[] = ['pending', 'invoiceSent', 'received', 'completed'];
     const idx = order.indexOf(client.paymentStatus);
-    const next = order[(idx + 1) % order.length];
-    await onUpdate(client.id, { paymentStatus: next });
+    if (idx < order.length - 1) {
+      const next = order[idx + 1];
+      await onUpdate(client.id, { paymentStatus: next });
+    }
   }
 
   const daysUntilDue = client.dueDate

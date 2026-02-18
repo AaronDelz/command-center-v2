@@ -174,7 +174,7 @@ export interface GoalsData {
 // Client Types
 
 export type ClientStatus = 'active' | 'pipeline' | 'paused' | 'completed';
-export type PaymentStatus = 'pending' | 'sent' | 'received';
+export type PaymentStatus = 'pending' | 'invoiceSent' | 'received' | 'completed';
 
 export interface Client {
   id: string;
@@ -305,6 +305,34 @@ export interface A2PRegistration {
 
 export interface A2PData {
   registrations: A2PRegistration[];
+  lastUpdated: string;
+}
+
+// Billing Period Types
+
+export type BillingPeriodStatus = 'current' | 'past' | 'completed';
+export type BillingPaymentStatus = 'pending' | 'invoiceSent' | 'received' | 'completed';
+
+export interface BillingPeriod {
+  id: string;
+  clientId: string;
+  month: number;
+  year: number;
+  period: BillingPeriodStatus;
+  incomeTracked: number;
+  incomeRetainer: number;
+  incomeProject: number;
+  monthlyTotal: number;
+  paymentStatus: BillingPaymentStatus;
+  invoiceSentDate: string | null;
+  paymentReceivedDate: string | null;
+  notes: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface BillingData {
+  billingPeriods: BillingPeriod[];
   lastUpdated: string;
 }
 

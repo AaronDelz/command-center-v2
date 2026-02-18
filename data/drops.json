@@ -1,6 +1,21 @@
 {
   "drops": [
     {
+      "id": "drop-1771373805847",
+      "shortId": "U4K",
+      "type": "file",
+      "content": "This a call I had today for School of Content. Can you extract the task I need to do and then add them to the Battle Board please?",
+      "status": "new",
+      "createdAt": "2026-02-18T00:16:45.847Z",
+      "files": [
+        "~/Documents/inbox/School_of_Content_-_February_17.txt"
+      ],
+      "title": "SOC Call \u2014 Feb 17 (Samantha & Catherine)",
+      "seen": true,
+      "seenAt": "2026-02-17T23:55:00.000Z",
+      "journalTag": "decisions"
+    },
+    {
       "id": "drop-1771365525550",
       "type": "unsorted",
       "content": "https://youtu.be/Q7r--i9lLck?si=6jT_kiR-NUZ4pYO8\n\n---\n\nhttps://gist.github.com/mberman84/065631c62d6d8f30ecb14748c00fc6d9\n\n---\n\nFile upload\n\n---\n\nFile upload\n\n---\n\nFile upload",
@@ -72,5 +87,5 @@
       "shortId": "X7R"
     }
   ],
-  "lastUpdated": "2026-02-17T22:30:13.678Z"
+  "lastUpdated": "2026-02-18T00:16:45.847Z"
 }

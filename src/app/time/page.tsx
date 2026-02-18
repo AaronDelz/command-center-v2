@@ -180,11 +180,9 @@ export default function TimePage(): React.ReactElement {
       {viewMode === 'tracker' && (
         <>
           <TimeTracker clients={clients} />
-          {timeData && (
-            <div style={{ marginTop: '24px' }}>
-              <MonthlyBilling entries={timeData.entries} />
-            </div>
-          )}
+          <div style={{ marginTop: '24px' }}>
+            <MonthlyBilling clients={clients} />
+          </div>
         </>
       )}
       

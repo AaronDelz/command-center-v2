@@ -1,248 +1,327 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { GlassPill } from '@/components/ui/GlassPill';
 import { SectionHeading } from '@/components/ui/SectionHeading';
-import { color, typography, radius } from '@/styles/tokens';
-import type { TimeEntry } from '@/lib/types';
+import { EmberButton } from '@/components/ui/EmberButton';
+import { color, typography, radius, animation } from '@/styles/tokens';
+import type { BillingPeriod, BillingPaymentStatus, Client, BillingData } from '@/lib/types';
 
-interface MonthlyBillingProps {
-  entries: TimeEntry[];
-}
+// ─── Payment Status Config ─────────────────────────────────────
 
-interface ClientMonth {
-  clientId: string;
-  clientName: string;
-  month: string;       // "2026-02"
-  monthLabel: string;  // "Feb 2026"
-  hours: number;
-  value: number;
-  entryCount: number;
-  status: 'pending' | 'invoiced' | 'sent' | 'received';
-}
-
-function getMonthKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function getMonthLabel(key: string): string {
-  const [year, month] = key.split('-');
-  const date = new Date(parseInt(year), parseInt(month) - 1);
-  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
-
-const statusColors: Record<string, { variant: 'default' | 'warning' | 'info' | 'success'; label: string }> = {
-  pending:  { variant: 'warning', label: 'Pending' },
-  invoiced: { variant: 'info', label: 'Invoiced' },
-  sent:     { variant: 'info', label: 'Sent' },
-  received: { variant: 'success', label: 'Received' },
+const PAYMENT_STATUS_CONFIG: Record<BillingPaymentStatus, { label: string; color: string; bg: string; next: string }> = {
+  pending:     { label: 'Pending',      color: '#9ca3af', bg: 'rgba(156, 163, 175, 0.15)', next: 'Invoice Sent' },
+  invoiceSent: { label: 'Invoice Sent', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)',  next: 'Received' },
+  received:    { label: 'Received',     color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)',   next: 'Completed' },
+  completed:   { label: 'Completed',    color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.15)',   next: '' },
 };
 
-export function MonthlyBilling({ entries }: MonthlyBillingProps): React.ReactElement {
-  const [selectedMonth, setSelectedMonth] = useState<string | 'all'>('all');
+// ─── Payment Status Pill ────────────────────────────────────────
 
-  const { rows, months } = useMemo(() => {
-    const buckets: Record<string, ClientMonth> = {};
-    const monthSet = new Set<string>();
+function PaymentStatusPill({ status, onClick, disabled }: { status: BillingPaymentStatus; onClick: () => void; disabled?: boolean }) {
+  const cfg = PAYMENT_STATUS_CONFIG[status];
+  const isLast = status === 'completed';
 
-    for (const entry of entries) {
-      if (!entry.duration || entry.isRunning || !entry.billable) continue;
-      const date = new Date(entry.startTime);
-      const monthKey = getMonthKey(date);
-      monthSet.add(monthKey);
-      const key = `${entry.clientId}::${monthKey}`;
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled || isLast}
+      title={isLast ? 'Completed' : `Click to advance → ${cfg.next}`}
+      style={{
+        fontSize: '0.65rem',
+        fontWeight: 700,
+        color: cfg.color,
+        background: cfg.bg,
+        border: `1px solid ${cfg.color}30`,
+        borderRadius: '999px',
+        padding: '3px 12px',
+        cursor: isLast ? 'default' : 'pointer',
+        letterSpacing: '0.06em',
+        whiteSpace: 'nowrap',
+        transition: `all ${animation.duration.normal}`,
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      {cfg.label} {!isLast && '→'}
+    </button>
+  );
+}
 
-      if (!buckets[key]) {
-        buckets[key] = {
-          clientId: entry.clientId,
-          clientName: entry.clientName,
-          month: monthKey,
-          monthLabel: getMonthLabel(monthKey),
-          hours: 0,
-          value: 0,
-          entryCount: 0,
-          status: 'pending',
-        };
+// ─── Types ──────────────────────────────────────────────────────
+
+interface MonthlyBillingProps {
+  entries?: unknown[]; // kept for backward compat, not used
+  clients?: Client[];
+}
+
+// ─── Main Component ─────────────────────────────────────────────
+
+export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): React.ReactElement {
+  const [billingPeriods, setBillingPeriods] = useState<BillingPeriod[]>([]);
+  const [clients, setClients] = useState<Client[]>(propClients || []);
+  const [isLoading, setIsLoading] = useState(true);
+  const [advancing, setAdvancing] = useState<string | null>(null);
+
+  // Month navigation
+  const now = new Date();
+  const [viewMonth, setViewMonth] = useState(now.getMonth() + 1);
+  const [viewYear, setViewYear] = useState(now.getFullYear());
+
+  const monthLabel = useMemo(() => {
+    const d = new Date(viewYear, viewMonth - 1);
+    return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }, [viewMonth, viewYear]);
+
+  const isCurrentMonth = viewMonth === now.getMonth() + 1 && viewYear === now.getFullYear();
+
+  // Fetch data
+  const fetchData = useCallback(async () => {
+    try {
+      const [billingRes, clientsRes] = await Promise.all([
+        fetch(`/api/billing?month=${viewMonth}&year=${viewYear}`),
+        propClients ? Promise.resolve(null) : fetch('/api/clients'),
+      ]);
+
+      if (!billingRes.ok) throw new Error('Failed to fetch billing');
+      const billingData = await billingRes.json() as BillingData;
+      setBillingPeriods(billingData.billingPeriods);
+
+      if (clientsRes) {
+        const clientsData = await clientsRes.json() as { clients: Client[] };
+        setClients(clientsData.clients);
       }
-      buckets[key].hours += entry.duration / 60;
-      buckets[key].value += entry.rate ? (entry.duration / 60) * entry.rate : 0;
-      buckets[key].entryCount += 1;
+    } catch (error) {
+      console.error('Error fetching billing data:', error);
+    } finally {
+      setIsLoading(false);
     }
+  }, [viewMonth, viewYear, propClients]);
 
-    const sortedMonths = Array.from(monthSet).sort().reverse();
-    const sortedRows = Object.values(buckets).sort((a, b) => {
-      if (a.month !== b.month) return b.month.localeCompare(a.month);
-      return b.value - a.value;
+  useEffect(() => {
+    setIsLoading(true);
+    fetchData();
+  }, [fetchData]);
+
+  // Advance payment status
+  const advanceStatus = useCallback(async (periodId: string) => {
+    setAdvancing(periodId);
+    try {
+      const res = await fetch('/api/billing', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: periodId, advanceStatus: true }),
+      });
+      if (!res.ok) throw new Error('Failed to advance status');
+      const updated = await res.json() as BillingPeriod;
+      setBillingPeriods(prev => prev.map(p => p.id === periodId ? updated : p));
+    } catch (error) {
+      console.error('Error advancing status:', error);
+    } finally {
+      setAdvancing(null);
+    }
+  }, []);
+
+  // Navigate months
+  const prevMonth = () => {
+    if (viewMonth === 1) { setViewMonth(12); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 12) { setViewMonth(1); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  };
+
+  // Get client name from ID
+  const getClientName = (clientId: string): string => {
+    const client = clients.find(c => c.id === clientId);
+    return client?.name || clientId;
+  };
+
+  // Summary calculations
+  const summary = useMemo(() => {
+    const outstanding = billingPeriods
+      .filter(p => p.paymentStatus === 'pending' || p.paymentStatus === 'invoiceSent')
+      .reduce((s, p) => s + p.monthlyTotal, 0);
+    const received = billingPeriods
+      .filter(p => p.paymentStatus === 'received')
+      .reduce((s, p) => s + p.monthlyTotal, 0);
+    const completed = billingPeriods
+      .filter(p => p.paymentStatus === 'completed')
+      .reduce((s, p) => s + p.monthlyTotal, 0);
+    const total = billingPeriods.reduce((s, p) => s + p.monthlyTotal, 0);
+    return { outstanding, received, completed, total };
+  }, [billingPeriods]);
+
+  // Sort: pending first, then invoiceSent, received, completed
+  const sortedPeriods = useMemo(() => {
+    const order: Record<string, number> = { pending: 0, invoiceSent: 1, received: 2, completed: 3 };
+    return [...billingPeriods].sort((a, b) => {
+      const diff = order[a.paymentStatus] - order[b.paymentStatus];
+      if (diff !== 0) return diff;
+      return b.monthlyTotal - a.monthlyTotal;
     });
+  }, [billingPeriods]);
 
-    return { rows: sortedRows, months: sortedMonths };
-  }, [entries]);
-
-  const filteredRows = selectedMonth === 'all'
-    ? rows
-    : rows.filter(r => r.month === selectedMonth);
-
-  const totalValue = filteredRows.reduce((s, r) => s + r.value, 0);
-  const totalHours = filteredRows.reduce((s, r) => s + r.hours, 0);
+  const fmt = (n: number) => n === 0 ? '—' : `$${Math.round(n).toLocaleString()}`;
 
   return (
     <GlassCard>
+      {/* Header with month navigation */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <SectionHeading title="Monthly Billing" />
-        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          <GlassPill
-            size="xs"
-            variant="ember"
-            active={selectedMonth === 'all'}
-            onClick={() => setSelectedMonth('all')}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={prevMonth}
+            style={{
+              background: 'none', border: `1px solid ${color.glass.border}`, borderRadius: radius.sm,
+              color: color.text.secondary, padding: '4px 10px', cursor: 'pointer', fontSize: '0.75rem',
+            }}
           >
-            All
-          </GlassPill>
-          {months.slice(0, 6).map(m => (
-            <GlassPill
-              key={m}
-              size="xs"
-              variant="ember"
-              active={selectedMonth === m}
-              onClick={() => setSelectedMonth(m)}
-            >
-              {getMonthLabel(m)}
-            </GlassPill>
-          ))}
+            ← Prev
+          </button>
+          <span style={{
+            fontSize: typography.fontSize.body,
+            fontWeight: typography.fontWeight.semibold,
+            color: isCurrentMonth ? color.ember.flame : color.text.primary,
+            minWidth: '140px', textAlign: 'center',
+          }}>
+            {monthLabel}
+          </span>
+          <button
+            onClick={nextMonth}
+            style={{
+              background: 'none', border: `1px solid ${color.glass.border}`, borderRadius: radius.sm,
+              color: color.text.secondary, padding: '4px 10px', cursor: 'pointer', fontSize: '0.75rem',
+            }}
+          >
+            Next →
+          </button>
         </div>
       </div>
 
-      {/* Table */}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              {['Client', 'Month', 'Hours', 'Value', 'Entries', 'Status'].map(h => (
-                <th
-                  key={h}
-                  style={{
-                    textAlign: h === 'Client' ? 'left' : 'right',
-                    padding: '8px 12px',
-                    fontSize: typography.fontSize.caption,
-                    fontWeight: typography.fontWeight.medium,
-                    color: color.text.secondary,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    borderBottom: `1px solid ${color.glass.border}`,
-                  }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRows.map((row) => {
-              const sc = statusColors[row.status];
-              return (
-                <tr
-                  key={`${row.clientId}-${row.month}`}
-                  style={{ borderBottom: `1px solid ${color.glass.border}` }}
-                >
-                  <td style={{
-                    padding: '10px 12px',
-                    fontSize: typography.fontSize.body,
-                    fontWeight: typography.fontWeight.medium,
-                    color: color.text.primary,
-                  }}>
-                    {row.clientName}
-                  </td>
-                  <td style={{
-                    padding: '10px 12px',
-                    textAlign: 'right',
-                    fontSize: typography.fontSize.caption,
-                    color: color.text.secondary,
-                  }}>
-                    {row.monthLabel}
-                  </td>
-                  <td style={{
-                    padding: '10px 12px',
-                    textAlign: 'right',
-                    fontSize: typography.fontSize.body,
-                    color: color.text.primary,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}>
-                    {row.hours.toFixed(1)}h
-                  </td>
-                  <td style={{
-                    padding: '10px 12px',
-                    textAlign: 'right',
-                    fontSize: typography.fontSize.body,
-                    fontWeight: typography.fontWeight.semibold,
-                    color: color.ember.flame,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}>
-                    ${Math.round(row.value).toLocaleString()}
-                  </td>
-                  <td style={{
-                    padding: '10px 12px',
-                    textAlign: 'right',
-                    fontSize: typography.fontSize.caption,
-                    color: color.text.dim,
-                  }}>
-                    {row.entryCount}
-                  </td>
-                  <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                    <GlassPill size="xs" variant={sc.variant}>
-                      {sc.label}
-                    </GlassPill>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          {/* Totals row */}
-          <tfoot>
-            <tr>
-              <td style={{
-                padding: '10px 12px',
-                fontSize: typography.fontSize.body,
-                fontWeight: typography.fontWeight.bold,
-                color: color.text.accent,
-              }}>
-                Total
-              </td>
-              <td />
-              <td style={{
-                padding: '10px 12px',
-                textAlign: 'right',
-                fontSize: typography.fontSize.body,
-                fontWeight: typography.fontWeight.bold,
-                color: color.text.primary,
-                fontVariantNumeric: 'tabular-nums',
-              }}>
-                {totalHours.toFixed(1)}h
-              </td>
-              <td style={{
-                padding: '10px 12px',
-                textAlign: 'right',
-                fontSize: typography.fontSize.body,
-                fontWeight: typography.fontWeight.bold,
-                color: color.ember.flame,
-                fontVariantNumeric: 'tabular-nums',
-              }}>
-                ${Math.round(totalValue).toLocaleString()}
-              </td>
-              <td colSpan={2} />
-            </tr>
-          </tfoot>
-        </table>
+      {/* Summary cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '16px' }}>
+        {[
+          { label: 'Total', value: summary.total, clr: color.ember.flame },
+          { label: 'Outstanding', value: summary.outstanding, clr: '#f59e0b' },
+          { label: 'Received', value: summary.received, clr: '#10b981' },
+          { label: 'Completed', value: summary.completed, clr: '#3b82f6' },
+        ].map(s => (
+          <div key={s.label} style={{
+            textAlign: 'center', padding: '8px',
+            background: 'rgba(255,255,255,0.02)', borderRadius: radius.md,
+            border: `1px solid ${color.glass.border}`,
+          }}>
+            <div style={{ fontSize: typography.fontSize.metadata, color: color.text.dim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {s.label}
+            </div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: s.clr, fontVariantNumeric: 'tabular-nums' }}>
+              {fmt(s.value)}
+            </div>
+          </div>
+        ))}
       </div>
 
-      {filteredRows.length === 0 && (
-        <div style={{
-          textAlign: 'center',
-          padding: '32px',
-          color: color.text.dim,
-          fontSize: typography.fontSize.body,
-        }}>
-          No billable entries for this period
+      {/* Table */}
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: '32px', color: color.text.dim }}>Loading billing data...</div>
+      ) : sortedPeriods.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '32px', color: color.text.dim, fontSize: typography.fontSize.body }}>
+          No billing periods for {monthLabel}
+        </div>
+      ) : (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {['Client', 'Tracked', 'Retainer', 'Project', 'Total', 'Status'].map(h => (
+                  <th
+                    key={h}
+                    style={{
+                      textAlign: h === 'Client' ? 'left' : 'right',
+                      padding: '8px 12px',
+                      fontSize: typography.fontSize.caption,
+                      fontWeight: typography.fontWeight.medium,
+                      color: color.text.secondary,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      borderBottom: `1px solid ${color.glass.border}`,
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sortedPeriods.map(period => (
+                <tr key={period.id} style={{ borderBottom: `1px solid ${color.glass.border}` }}>
+                  <td style={{
+                    padding: '10px 12px', fontSize: typography.fontSize.body,
+                    fontWeight: typography.fontWeight.medium, color: color.text.primary,
+                  }}>
+                    {getClientName(period.clientId)}
+                  </td>
+                  <td style={{
+                    padding: '10px 12px', textAlign: 'right', fontSize: typography.fontSize.body,
+                    color: period.incomeTracked > 0 ? color.status.healthy : color.text.dim,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {fmt(period.incomeTracked)}
+                  </td>
+                  <td style={{
+                    padding: '10px 12px', textAlign: 'right', fontSize: typography.fontSize.body,
+                    color: period.incomeRetainer > 0 ? color.ember.flame : color.text.dim,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {fmt(period.incomeRetainer)}
+                  </td>
+                  <td style={{
+                    padding: '10px 12px', textAlign: 'right', fontSize: typography.fontSize.body,
+                    color: period.incomeProject > 0 ? color.ember.DEFAULT : color.text.dim,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {fmt(period.incomeProject)}
+                  </td>
+                  <td style={{
+                    padding: '10px 12px', textAlign: 'right', fontSize: typography.fontSize.body,
+                    fontWeight: typography.fontWeight.semibold, color: color.ember.flame,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    ${Math.round(period.monthlyTotal).toLocaleString()}
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                    <PaymentStatusPill
+                      status={period.paymentStatus}
+                      onClick={() => advanceStatus(period.id)}
+                      disabled={advancing === period.id}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {/* Totals */}
+            <tfoot>
+              <tr>
+                <td style={{ padding: '10px 12px', fontSize: typography.fontSize.body, fontWeight: 700, color: color.text.accent }}>
+                  Total
+                </td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: color.status.healthy, fontVariantNumeric: 'tabular-nums' }}>
+                  {fmt(sortedPeriods.reduce((s, p) => s + p.incomeTracked, 0))}
+                </td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: color.ember.flame, fontVariantNumeric: 'tabular-nums' }}>
+                  {fmt(sortedPeriods.reduce((s, p) => s + p.incomeRetainer, 0))}
+                </td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: color.ember.DEFAULT, fontVariantNumeric: 'tabular-nums' }}>
+                  {fmt(sortedPeriods.reduce((s, p) => s + p.incomeProject, 0))}
+                </td>
+                <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: color.ember.flame, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 12px rgba(255, 179, 71, 0.3)` }}>
+                  ${Math.round(summary.total).toLocaleString()}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
         </div>
       )}
     </GlassCard>
