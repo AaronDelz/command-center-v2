@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ClientTable } from '@/components/clients/ClientTable';
+import { BillingTable } from '@/components/clients/BillingTable';
 import { GlassCard, GlassModal, GlassInput, GlassSelect, GlassPill, EmberButton } from '@/components/ui';
 import { QuickTimeWidget } from '@/components/time/QuickTimeWidget';
 import { A2PPipeline } from '@/components/clients/A2PPipeline';
@@ -241,14 +242,14 @@ const STATUS_FILTERS: Array<{ key: ClientStatus | 'all'; label: string }> = [
 
 // ─── Page Component ─────────────────────────────────────────────
 
-type ClientTab = 'roster' | 'a2p';
+type ClientTab = 'billing' | 'roster' | 'a2p';
 
 export default function ClientsPage(): React.ReactElement {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<ClientStatus | 'all'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<ClientTab>('roster');
+  const [activeTab, setActiveTab] = useState<ClientTab>('billing');
 
   const fetchClients = useCallback(async () => {
     try {
@@ -321,6 +322,7 @@ export default function ClientsPage(): React.ReactElement {
   }
 
   const TAB_OPTIONS: Array<{ key: ClientTab; label: string; icon: string }> = [
+    { key: 'billing', label: 'Billing', icon: '💰' },
     { key: 'roster', label: 'Client Roster', icon: '👥' },
     { key: 'a2p', label: 'A2P Pipeline', icon: '📡' },
   ];
@@ -329,7 +331,11 @@ export default function ClientsPage(): React.ReactElement {
     <div>
       <PageHeader
         title="Client Command"
-        subtitle={activeTab === 'roster' ? 'Your client roster — relationships, revenue, results' : 'A2P & Toll-Free registration tracker'}
+        subtitle={
+          activeTab === 'billing' ? 'Track time, bill clients, get paid — one view'
+          : activeTab === 'roster' ? 'Your client roster — relationships, revenue, results'
+          : 'A2P & Toll-Free registration tracker'
+        }
         actions={
           activeTab === 'roster' ? (
             <EmberButton variant="primary" size="sm" onClick={() => setShowAddModal(true)}>
@@ -353,6 +359,11 @@ export default function ClientsPage(): React.ReactElement {
           </GlassPill>
         ))}
       </div>
+
+      {/* Billing Tab (ClickUp-style) */}
+      {activeTab === 'billing' && (
+        <BillingTable clients={clients} onRefresh={fetchClients} />
+      )}
 
       {/* A2P Pipeline Tab */}
       {activeTab === 'a2p' && <A2PPipeline />}
