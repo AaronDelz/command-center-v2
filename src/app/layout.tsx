@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { FloatingDropButton } from "@/components/notes/FloatingDropButton";
 import { FloatingTimer } from "@/components/time/FloatingTimer";
+import { GlobalSearch } from "@/components/search/GlobalSearch";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -57,6 +58,7 @@ export function RootLayout({
         </main>
         <FloatingDropButton />
         <FloatingTimer />
+        <GlobalSearch />
         <MobileNav />
       </body>
     </html>

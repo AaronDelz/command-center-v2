@@ -2,267 +2,296 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { color, typography, radius, shadow, glass } from '@/styles/tokens';
 
 interface SearchResult {
-  type: 'card' | 'note' | 'doc';
-  id: string;
+  type: 'kanban' | 'client' | 'vault' | 'note';
   title: string;
-  snippet: string;
-  columnId?: string;
-  docPath?: string;
+  subtitle?: string;
+  url: string;
+  icon: string;
 }
 
-interface SearchResponse {
-  query: string;
-  results: {
-    cards: SearchResult[];
-    notes: SearchResult[];
-    docs: SearchResult[];
-  };
-  total: number;
-}
-
-export function GlobalSearch(): React.ReactElement {
+export function GlobalSearch() {
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResponse | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // ⌘K / Ctrl+K listener
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setOpen(prev => !prev);
+      }
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Focus input when opened
+  useEffect(() => {
+    if (open) {
+      setQuery('');
+      setResults([]);
+      setSelectedIndex(0);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  // Search logic
+  const search = useCallback(async (q: string) => {
+    if (!q.trim()) { setResults([]); return; }
+    setLoading(true);
+
+    try {
+      const [kanbanRes, clientsRes, vaultRes, notesRes, dropsRes] = await Promise.allSettled([
+        fetch('/api/kanban').then(r => r.json()),
+        fetch('/api/clients').then(r => r.json()),
+        fetch('/api/vault').then(r => r.json()),
+        fetch('/api/notes').then(r => r.json()),
+        fetch('/api/drops?limit=100').then(r => r.json()),
+      ]);
+
+      const found: SearchResult[] = [];
+      const lq = q.toLowerCase();
+
+      // Kanban cards
+      if (kanbanRes.status === 'fulfilled') {
+        const data = kanbanRes.value;
+        const columns = data.columns || [];
+        for (const col of columns) {
+          for (const card of (col.cards || [])) {
+            if (card.title?.toLowerCase().includes(lq) || card.description?.toLowerCase().includes(lq)) {
+              found.push({
+                type: 'kanban',
+                title: card.title,
+                subtitle: `${col.title} · Battle Board`,
+                url: `/kanban`,
+                icon: '⚔️',
+              });
+            }
+          }
+        }
+      }
+
+      // Clients
+      if (clientsRes.status === 'fulfilled') {
+        const clients = clientsRes.value.clients || clientsRes.value || [];
+        for (const c of clients) {
+          if (c.name?.toLowerCase().includes(lq) || c.businessName?.toLowerCase().includes(lq)) {
+            found.push({
+              type: 'client',
+              title: c.name,
+              subtitle: c.businessName || c.status,
+              url: `/clients?highlight=${encodeURIComponent(c.name)}`,
+              icon: '👤',
+            });
+          }
+        }
+      }
+
+      // Vault docs
+      if (vaultRes.status === 'fulfilled') {
+        const docs = vaultRes.value.files || vaultRes.value || [];
+        for (const doc of docs) {
+          const name = doc.name || doc.title || '';
+          if (name.toLowerCase().includes(lq)) {
+            found.push({
+              type: 'vault',
+              title: name,
+              subtitle: doc.category || 'Vault',
+              url: `/vault?id=${encodeURIComponent(doc.id || doc.path || name)}`,
+              icon: '📜',
+            });
+          }
+        }
+      }
+
+      // Notes (quick notes)
+      if (notesRes.status === 'fulfilled') {
+        const notes = notesRes.value.notes || [];
+        for (const note of notes) {
+          const text = note.text || '';
+          if (text.toLowerCase().includes(lq)) {
+            found.push({
+              type: 'note',
+              title: text.slice(0, 80) + (text.length > 80 ? '…' : ''),
+              subtitle: 'Quick Note',
+              url: '/notes',
+              icon: '📝',
+            });
+          }
+        }
+      }
+
+      // Drops
+      if (dropsRes.status === 'fulfilled') {
+        const drops = dropsRes.value.drops || [];
+        for (const drop of drops) {
+          const text = drop.content || '';
+          if (text.toLowerCase().includes(lq)) {
+            found.push({
+              type: 'note',
+              title: text.slice(0, 80) + (text.length > 80 ? '…' : ''),
+              subtitle: `Drop · ${drop.type || 'unsorted'}`,
+              url: '/notes',
+              icon: '📥',
+            });
+          }
+        }
+      }
+
+      setResults(found.slice(0, 20));
+      setSelectedIndex(0);
+    } catch {
+      // fail silently
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Debounced search
   useEffect(() => {
-    if (query.length < 2) {
-      setResults(null);
-      return;
+    const t = setTimeout(() => search(query), 200);
+    return () => clearTimeout(t);
+  }, [query, search]);
+
+  const navigate = (result: SearchResult) => {
+    setOpen(false);
+    router.push(result.url);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(i => Math.min(i + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter' && results[selectedIndex]) {
+      navigate(results[selectedIndex]);
     }
+  };
 
-    setIsLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        const data = await res.json() as SearchResponse;
-        setResults(data);
-      } catch (error) {
-        console.error('Search error:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 200);
-
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent): void {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Keyboard shortcut: Cmd/Ctrl + K
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent): void {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-        event.preventDefault();
-        inputRef.current?.focus();
-        setIsOpen(true);
-      }
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-        inputRef.current?.blur();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
-  const handleResultClick = useCallback((result: SearchResult) => {
-    setIsOpen(false);
-    setQuery('');
-
-    switch (result.type) {
-      case 'card':
-        router.push(`/?card=${result.id}`);
-        break;
-      case 'note':
-        router.push('/notes');
-        break;
-      case 'doc': {
-        const docId = result.docPath ?? result.id;
-        const ts = Date.now(); // Force re-render on repeated navigations
-        // Vault docs have category/ prefix (e.g. reports/some-report), workspace files don't
-        if (docId.includes('/')) {
-          router.push(`/docs?vault=${encodeURIComponent(docId)}&t=${ts}`);
-        } else {
-          router.push(`/docs?file=${encodeURIComponent(docId)}&t=${ts}`);
-        }
-        break;
-      }
-    }
-  }, [router]);
-
-  const hasResults = results && results.total > 0;
-  const showDropdown = isOpen && (hasResults || isLoading || query.length >= 2);
+  if (!open) return null;
 
   return (
-    <div ref={containerRef} className="relative w-full">
-      {/* Search Input */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <svg
-            className="h-4 w-4 text-text-muted"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 9999,
+        background: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        paddingTop: '15vh',
+      }}
+      onClick={() => setOpen(false)}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%', maxWidth: 580,
+          background: color.bg.elevated,
+          border: `1px solid ${color.glass.border}`,
+          borderRadius: radius.lg,
+          boxShadow: shadow.modal,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Search input */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '16px 20px',
+          borderBottom: `1px solid ${color.glass.border}`,
+        }}>
+          <span style={{ fontSize: 18, opacity: 0.5 }}>🔍</span>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Search kanban, clients, vault, notes…"
+            style={{
+              flex: 1, background: 'transparent', border: 'none', outline: 'none',
+              color: color.text.primary,
+              fontSize: typography.fontSize.body,
+              fontFamily: 'inherit',
+            }}
+          />
+          <kbd style={{
+            padding: '2px 8px', borderRadius: radius.sm,
+            background: 'rgba(255,255,255,0.08)',
+            color: color.text.dim,
+            fontSize: 11, fontFamily: typography.fontFamily.mono,
+          }}>ESC</kbd>
         </div>
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => setIsOpen(true)}
-          placeholder="Search..."
-          className="w-full pl-10 pr-10 py-2.5 min-h-[44px] bg-surface-raised border border-border rounded-lg
-                     text-foreground placeholder-text-muted text-base
-                     focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent
-                     transition-colors"
-        />
-        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-          <span className="text-xs text-text-muted bg-surface px-1.5 py-0.5 rounded">
-            ⌘K
-          </span>
-        </div>
-      </div>
 
-      {/* Dropdown Results */}
-      {showDropdown && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border rounded-lg shadow-xl overflow-hidden z-50 max-h-[400px] overflow-y-auto">
-          {isLoading && (
-            <div className="p-4 text-center text-text-muted text-sm">
-              Searching...
+        {/* Results */}
+        <div style={{ maxHeight: 400, overflowY: 'auto', padding: '8px 0' }}>
+          {loading && (
+            <div style={{ padding: '20px', textAlign: 'center', color: color.text.dim, fontSize: 13 }}>
+              Searching…
             </div>
           )}
-
-          {!isLoading && !hasResults && query.length >= 2 && (
-            <div className="p-4 text-center text-text-muted text-sm">
-              No results found
+          {!loading && query && results.length === 0 && (
+            <div style={{ padding: '20px', textAlign: 'center', color: color.text.dim, fontSize: 13 }}>
+              No results for &ldquo;{query}&rdquo;
             </div>
           )}
-
-          {!isLoading && hasResults && (
-            <>
-              {/* Cards */}
-              {results.results.cards.length > 0 && (
-                <ResultSection
-                  title="Cards"
-                  icon="◉"
-                  results={results.results.cards}
-                  query={query}
-                  onResultClick={handleResultClick}
-                />
-              )}
-
-              {/* Notes */}
-              {results.results.notes.length > 0 && (
-                <ResultSection
-                  title="Notes"
-                  icon="✎"
-                  results={results.results.notes}
-                  query={query}
-                  onResultClick={handleResultClick}
-                />
-              )}
-
-              {/* Docs */}
-              {results.results.docs.length > 0 && (
-                <ResultSection
-                  title="Docs"
-                  icon="📄"
-                  results={results.results.docs}
-                  query={query}
-                  onResultClick={handleResultClick}
-                />
-              )}
-            </>
+          {!loading && !query && (
+            <div style={{ padding: '20px', textAlign: 'center', color: color.text.dim, fontSize: 13 }}>
+              Type to search across The Forge
+            </div>
           )}
+          {results.map((r, i) => (
+            <button
+              key={`${r.type}-${r.title}-${i}`}
+              onClick={() => navigate(r)}
+              onMouseEnter={() => setSelectedIndex(i)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 20px',
+                background: i === selectedIndex ? 'rgba(255,255,255,0.06)' : 'transparent',
+                border: 'none', cursor: 'pointer', textAlign: 'left',
+                transition: 'background 0.1s',
+              }}
+            >
+              <span style={{ fontSize: 16, width: 24, textAlign: 'center' }}>{r.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  color: color.text.primary, fontSize: 14, fontWeight: 500,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>{r.title}</div>
+                {r.subtitle && (
+                  <div style={{ color: color.text.dim, fontSize: 12, marginTop: 1 }}>{r.subtitle}</div>
+                )}
+              </div>
+              <span style={{
+                fontSize: 10, color: color.text.dim, textTransform: 'uppercase',
+                padding: '2px 6px', borderRadius: radius.sm,
+                background: 'rgba(255,255,255,0.05)',
+              }}>{r.type}</span>
+            </button>
+          ))}
         </div>
-      )}
-    </div>
-  );
-}
 
-interface ResultSectionProps {
-  title: string;
-  icon: string;
-  results: SearchResult[];
-  query: string;
-  onResultClick: (result: SearchResult) => void;
-}
-
-function ResultSection({ title, icon, results, query, onResultClick }: ResultSectionProps): React.ReactElement {
-  return (
-    <div className="border-b border-border last:border-b-0">
-      <div className="px-3 py-2 bg-surface-raised text-xs font-medium text-text-muted uppercase tracking-wide">
-        {icon} {title}
-      </div>
-      <div>
-        {results.slice(0, 5).map((result) => (
-          <button
-            key={result.id}
-            onClick={() => onResultClick(result)}
-            className="w-full px-3 py-3 min-h-[44px] text-left hover:bg-surface-raised active:bg-surface-raised/80 transition-colors flex flex-col gap-1"
-          >
-            <span className="text-sm font-medium text-foreground">
-              <HighlightText text={result.title} query={query} />
-            </span>
-            <span className="text-xs text-text-muted line-clamp-2">
-              <HighlightText text={result.snippet} query={query} />
-            </span>
-          </button>
-        ))}
+        {/* Footer */}
+        <div style={{
+          padding: '8px 20px',
+          borderTop: `1px solid ${color.glass.border}`,
+          display: 'flex', gap: 16,
+          fontSize: 11, color: color.text.dim,
+        }}>
+          <span>↑↓ navigate</span>
+          <span>↵ open</span>
+          <span>esc close</span>
+        </div>
       </div>
     </div>
-  );
-}
-
-interface HighlightTextProps {
-  text: string;
-  query: string;
-}
-
-function HighlightText({ text, query }: HighlightTextProps): React.ReactElement {
-  if (!query) return <>{text}</>;
-  
-  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  const parts = text.split(regex);
-  
-  return (
-    <>
-      {parts.map((part, i) => 
-        regex.test(part) ? (
-          <mark key={i} className="bg-accent/30 text-foreground rounded px-0.5">
-            {part}
-          </mark>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </>
   );
 }
