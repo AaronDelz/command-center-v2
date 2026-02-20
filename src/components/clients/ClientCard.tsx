@@ -9,7 +9,7 @@ const STATUS_CONFIG: Record<ClientStatus, { label: string; color: string; glow: 
   active:    { label: 'ACTIVE',    color: '#4ade80', glow: 'rgba(74, 222, 128, 0.4)' },
   pipeline:  { label: 'PIPELINE',  color: '#fbbf24', glow: 'rgba(251, 191, 36, 0.4)' },
   paused:    { label: 'PAUSED',    color: '#8a8494', glow: 'rgba(138, 132, 148, 0.3)' },
-  completed: { label: 'COMPLETE',  color: '#60a5fa', glow: 'rgba(96, 165, 250, 0.4)' },
+  closed:    { label: 'CLOSED',    color: '#60a5fa', glow: 'rgba(96, 165, 250, 0.4)' },
 };
 
 interface ClientCardProps {
@@ -32,7 +32,7 @@ export function ClientCard({ client, onUpdate }: ClientCardProps): React.ReactEl
     : null;
 
   async function handleStatusCycle(): Promise<void> {
-    const order: ClientStatus[] = ['pipeline', 'active', 'paused', 'completed'];
+    const order: ClientStatus[] = ['pipeline', 'active', 'paused', 'closed'];
     const currentIdx = order.indexOf(client.status);
     const next = order[(currentIdx + 1) % order.length];
     await onUpdate(client.id, { status: next });

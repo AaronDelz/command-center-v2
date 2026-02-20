@@ -19,7 +19,7 @@ export function PipelineSummary({ clients }: PipelineSummaryProps): React.ReactE
   }, 0);
 
   const projectPipeline = clients.reduce((sum, c) => {
-    if (c.status === 'completed') return sum;
+    if (c.status === 'closed') return sum;
     return sum + (c.projectValue || 0);
   }, 0);
 

@@ -26,6 +26,7 @@ export function KanbanBoard(): React.ReactElement {
   const [sortMode, setSortMode] = useState<SortMode>('default');
   const [hideDone, setHideDone] = useState(true);
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
+  const [compactMode, setCompactMode] = useState(false);
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
     card: null,
@@ -230,9 +231,6 @@ export function KanbanBoard(): React.ReactElement {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-foreground">Kanban Board</h2>
-          <p className="text-xs text-text-muted mt-0.5">
-            Last updated: {new Date(data.lastUpdated).toLocaleString()}
-          </p>
         </div>
         <div className="flex items-center gap-3">
           {/* View Toggle */}
@@ -293,6 +291,21 @@ export function KanbanBoard(): React.ReactElement {
             </div>
           )}
 
+          {/* Compact Toggle */}
+          <button
+            onClick={() => setCompactMode(!compactMode)}
+            className={`p-1.5 rounded-md transition-colors ${compactMode ? 'bg-accent text-white' : 'text-text-muted hover:text-foreground bg-surface-raised/60'}`}
+            title={compactMode ? 'Full cards' : 'Compact cards'}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {compactMode ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+
           {/* Sort */}
           <div className="flex items-center gap-1 bg-surface-raised/60 rounded-lg p-1">
             {([['default', 'Default'], ['dueDate', 'Due Date'], ['priority', 'Priority']] as const).map(([value, label]) => (
@@ -333,6 +346,7 @@ export function KanbanBoard(): React.ReactElement {
               ownerFilter={ownerFilter}
               clientFilter={clientFilter}
               sortMode={sortMode}
+              compactMode={compactMode}
               hideDone={hideDone}
               onToggleHideDone={() => setHideDone(!hideDone)}
               onCardClick={handleCardClick}

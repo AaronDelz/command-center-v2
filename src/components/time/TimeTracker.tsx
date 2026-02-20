@@ -1,147 +1,354 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { EmberButton } from '@/components/ui/EmberButton';
-import { color, typography, radius, animation, shadow } from '@/styles/tokens';
+import { color, typography, radius, animation } from '@/styles/tokens';
 import type { TimeEntry, TimeEntriesData, Client } from '@/lib/types';
 
 interface TimeTrackerProps {
   clients: Client[];
 }
 
-// Timer Component
-function Timer({ 
-  activeEntry, 
-  elapsedSeconds, 
-  onStop 
-}: { 
-  activeEntry: TimeEntry | null;
+// ─── Helpers ────────────────────────────────────────────────────
+
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
+function formatDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function formatMoney(amount: number): string {
+  return `$${amount.toFixed(2)}`;
+}
+
+function getBillingLabel(client: Client): string {
+  switch (client.revenueModel) {
+    case 'hourly': return `$${client.hourlyRate}/hr`;
+    case 'retainer': return `$${(client.retainerAmount || client.monthlyRetainer || 0).toLocaleString()}/mo`;
+    case 'project': return `$${(client.projectAmount || client.projectValue || 0).toLocaleString()} project`;
+    default: return client.rate;
+  }
+}
+
+function getBillingPill(client: Client): { label: string; bg: string; color: string } {
+  switch (client.revenueModel) {
+    case 'hourly':
+      return { label: 'HOURLY', bg: 'rgba(96, 165, 250, 0.15)', color: '#60a5fa' };
+    case 'retainer':
+      return { label: 'RETAINER', bg: 'rgba(74, 222, 128, 0.15)', color: '#4ade80' };
+    case 'project':
+      return { label: 'PROJECT', bg: 'rgba(255, 179, 71, 0.15)', color: '#ffb347' };
+    default:
+      return { label: 'OTHER', bg: 'rgba(255,255,255,0.05)', color: '#8a8494' };
+  }
+}
+
+// ─── Active Timer Display ───────────────────────────────────────
+
+function ActiveTimer({
+  entry,
+  elapsedSeconds,
+  client,
+  onStop,
+}: {
+  entry: TimeEntry;
   elapsedSeconds: number;
+  client: Client | undefined;
   onStop: () => void;
 }) {
-  const formatTime = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  if (!activeEntry) {
-    return (
-      <div style={{ 
-        textAlign: 'center', 
-        color: color.text.dim, 
-        padding: '40px',
-        fontSize: typography.fontSize.body,
-      }}>
-        No active timer
-      </div>
-    );
-  }
+  const rate = entry.rate || client?.hourlyRate || 0;
+  const hours = elapsedSeconds / 3600;
+  const earnings = rate * hours;
 
   return (
-    <div style={{ textAlign: 'center' }}>
+    <GlassCard>
       <div style={{
-        fontSize: '2.5rem',
-        fontWeight: typography.fontWeight.bold,
-        color: color.ember.flame,
-        textShadow: `0 0 20px ${color.ember.flame}40`,
-        marginBottom: '12px',
-        fontFamily: 'monospace',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px',
       }}>
-        {formatTime(elapsedSeconds)}
+        {/* Left: timer + info */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flex: 1 }}>
+          {/* Pulsing dot */}
+          <div style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            background: color.ember.flame,
+            boxShadow: `0 0 12px ${color.ember.flame}80`,
+            animation: 'timer-pulse 1.5s ease-in-out infinite',
+            flexShrink: 0,
+          }} />
+
+          {/* Timer display */}
+          <div style={{
+            fontSize: '2.5rem',
+            fontWeight: typography.fontWeight.bold,
+            color: color.ember.flame,
+            fontFamily: 'monospace',
+            textShadow: `0 0 20px ${color.ember.flame}40`,
+            lineHeight: 1,
+          }}>
+            {formatTime(elapsedSeconds)}
+          </div>
+
+          {/* Client + description */}
+          <div style={{ minWidth: 0 }}>
+            <div style={{
+              fontWeight: typography.fontWeight.semibold,
+              color: color.text.primary,
+              fontSize: typography.fontSize.body,
+            }}>
+              {entry.clientName}
+            </div>
+            <div style={{
+              color: color.text.secondary,
+              fontSize: typography.fontSize.caption,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '250px',
+            }}>
+              {entry.description}
+            </div>
+          </div>
+        </div>
+
+        {/* Right: rate + earnings + stop */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          {/* Rate */}
+          {rate > 0 && (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: typography.fontSize.metadata, color: color.text.dim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Rate
+              </div>
+              <div style={{ fontSize: typography.fontSize.body, fontWeight: typography.fontWeight.semibold, color: color.text.primary }}>
+                ${rate}/hr
+              </div>
+            </div>
+          )}
+
+          {/* Live earnings */}
+          {rate > 0 && (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: typography.fontSize.metadata, color: color.text.dim, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Earning
+              </div>
+              <div style={{
+                fontSize: '1.1rem',
+                fontWeight: typography.fontWeight.bold,
+                color: color.status.healthy,
+                fontVariantNumeric: 'tabular-nums',
+                textShadow: `0 0 8px rgba(74, 222, 128, 0.3)`,
+              }}>
+                {formatMoney(earnings)}
+              </div>
+            </div>
+          )}
+
+          {/* Stop button */}
+          <button
+            onClick={onStop}
+            style={{
+              padding: '12px 24px',
+              background: `linear-gradient(135deg, ${color.status.error}, #ff6b6b)`,
+              color: color.text.primary,
+              border: 'none',
+              borderRadius: radius.lg,
+              fontWeight: typography.fontWeight.semibold,
+              fontSize: typography.fontSize.body,
+              cursor: 'pointer',
+              transition: `all ${animation.duration.normal}`,
+              boxShadow: `0 0 16px rgba(239, 68, 68, 0.3)`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.filter = 'brightness(1.15)';
+              e.currentTarget.style.transform = 'scale(1.03)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.filter = 'none';
+              e.currentTarget.style.transform = 'none';
+            }}
+          >
+            ⏹ Stop Timer
+          </button>
+        </div>
       </div>
-      
-      <div style={{
-        color: color.text.primary,
-        fontWeight: typography.fontWeight.semibold,
-        marginBottom: '8px',
-      }}>
-        {activeEntry.clientName}
+
+      <style>{`
+        @keyframes timer-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(0.85); }
+        }
+      `}</style>
+    </GlassCard>
+  );
+}
+
+// ─── Quick Start: Client Card with Play Button ──────────────────
+
+function ClientPlayCard({
+  client,
+  isTimerRunning,
+  onQuickStart,
+}: {
+  client: Client;
+  isTimerRunning: boolean;
+  onQuickStart: (client: Client) => void;
+}) {
+  const router = useRouter();
+  const pill = getBillingPill(client);
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: '12px 16px',
+      background: color.bg.surface,
+      border: `1px solid ${color.glass.border}`,
+      borderRadius: radius.md,
+      transition: `all ${animation.duration.normal}`,
+    }}>
+      {/* Left: name + billing type */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{
+              fontWeight: typography.fontWeight.semibold,
+              color: color.text.primary,
+              fontSize: typography.fontSize.body,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {client.name}
+            </span>
+            {/* Link to Client Command */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/clients?highlight=${encodeURIComponent(client.name)}`);
+              }}
+              title={`View ${client.name} in Client Command`}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: color.text.dim,
+                cursor: 'pointer',
+                fontSize: '0.7rem',
+                padding: '2px',
+                transition: `color ${animation.duration.normal}`,
+                flexShrink: 0,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = color.ember.flame; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = color.text.dim; }}
+            >
+              ↗
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+            <span style={{
+              fontSize: '0.6rem',
+              fontWeight: 700,
+              color: pill.color,
+              background: pill.bg,
+              padding: '2px 8px',
+              borderRadius: '999px',
+              letterSpacing: '0.06em',
+              whiteSpace: 'nowrap',
+            }}>
+              {pill.label}
+            </span>
+            <span style={{ fontSize: typography.fontSize.caption, color: color.text.secondary }}>
+              {getBillingLabel(client)}
+            </span>
+          </div>
+        </div>
       </div>
-      
-      <div style={{
-        color: color.text.secondary,
-        fontSize: typography.fontSize.body,
-        marginBottom: '20px',
-        maxWidth: '300px',
-        margin: '0 auto 20px',
-      }}>
-        {activeEntry.description}
-      </div>
-      
+
+      {/* Right: play button */}
       <button
-        onClick={onStop}
+        onClick={() => onQuickStart(client)}
+        disabled={isTimerRunning}
+        title={isTimerRunning ? 'Stop current timer first' : `Start timer for ${client.name}`}
         style={{
-          padding: '10px 20px',
-          background: `linear-gradient(135deg, ${color.status.error}, #ff6b6b)`,
-          color: color.text.primary,
-          border: 'none',
-          borderRadius: radius.lg,
-          fontWeight: typography.fontWeight.semibold,
-          fontSize: typography.fontSize.body,
-          cursor: 'pointer',
+          width: '36px',
+          height: '36px',
+          borderRadius: radius.full,
+          background: isTimerRunning
+            ? 'rgba(255,255,255,0.03)'
+            : `linear-gradient(135deg, ${color.ember.DEFAULT}, ${color.ember.flame})`,
+          border: isTimerRunning ? `1px solid ${color.glass.border}` : 'none',
+          color: isTimerRunning ? color.text.dim : color.text.inverse,
+          cursor: isTimerRunning ? 'not-allowed' : 'pointer',
+          fontSize: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           transition: `all ${animation.duration.normal}`,
-          boxShadow: `0 0 12px rgba(239, 68, 68, 0.3)`,
+          flexShrink: 0,
+          opacity: isTimerRunning ? 0.4 : 1,
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.filter = 'brightness(1.15)';
-          e.currentTarget.style.transform = 'scale(1.02)';
+          if (!isTimerRunning) {
+            e.currentTarget.style.transform = 'scale(1.1)';
+            e.currentTarget.style.boxShadow = `0 0 16px rgba(255, 107, 53, 0.4)`;
+          }
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.filter = 'none';
           e.currentTarget.style.transform = 'none';
+          e.currentTarget.style.boxShadow = 'none';
         }}
       >
-        ⏹ Stop Timer
+        ▶
       </button>
     </div>
   );
 }
 
-// Start Timer Form Component
-function StartTimerForm({
-  clients,
-  onStart,
-}: {
-  clients: Client[];
-  onStart: (entry: Partial<TimeEntry>) => void;
-}) {
-  const [form, setForm] = useState({
-    clientId: '',
-    description: '',
-    tags: '',
-    billable: true,
-    rate: '',
-  });
+// ─── Quick Start Modal (description + details) ──────────────────
 
-  const selectedClient = clients.find(c => c.id === form.clientId);
+function QuickStartModal({
+  client,
+  onStart,
+  onClose,
+}: {
+  client: Client;
+  onStart: (entry: Partial<TimeEntry>) => void;
+  onClose: () => void;
+}) {
+  const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
+  const [billable, setBillable] = useState(true);
+  const [rate, setRate] = useState(String(client.hourlyRate || ''));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.clientId || !form.description.trim()) return;
-    
-    const client = clients.find(c => c.id === form.clientId);
-    if (!client) return;
-    
+    if (!description.trim()) return;
+
     onStart({
-      clientId: form.clientId,
+      clientId: client.id,
       clientName: client.name,
-      description: form.description.trim(),
-      tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-      billable: form.billable,
-      rate: form.rate ? parseFloat(form.rate) : undefined,
+      description: description.trim(),
+      tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      billable,
+      rate: rate ? parseFloat(rate) : undefined,
       isRunning: true,
-    });
-    
-    // Reset form
-    setForm({
-      clientId: '',
-      description: '',
-      tags: '',
-      billable: true,
-      rate: '',
     });
   };
 
@@ -155,176 +362,181 @@ function StartTimerForm({
     fontSize: typography.fontSize.body,
     fontFamily: 'inherit',
     outline: 'none',
-  };
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: typography.fontSize.caption,
-    color: color.text.secondary,
-    marginBottom: '4px',
-    display: 'block',
+    boxSizing: 'border-box',
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-        <div>
-          <label style={labelStyle}>Client *</label>
-          <select
-            style={{ ...inputStyle, cursor: 'pointer' }}
-            value={form.clientId}
-            onChange={(e) => {
-              const client = clients.find(c => c.id === e.target.value);
-              setForm({ 
-                ...form, 
-                clientId: e.target.value,
-                // Auto-fill rate from client if available
-                rate: client?.rate?.match(/\$(\d+)/)?.[1] || form.rate
-              });
-            }}
-            required
-          >
-            <option value="">Choose client...</option>
-            {clients
-              .filter(c => c.status === 'active')
-              .map(client => (
-                <option key={client.id} value={client.id}>
-                  {client.name} ({client.rate})
-                </option>
-              ))}
-          </select>
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 2000,
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: color.bg.base,
+          border: `1.5px solid ${color.glass.border}`,
+          borderRadius: radius['2xl'],
+          padding: '24px',
+          width: '420px',
+          maxWidth: '90vw',
+        }}
+      >
+        <h3 style={{
+          margin: '0 0 4px 0',
+          fontSize: typography.fontSize.pageTitle,
+          fontWeight: typography.fontWeight.semibold,
+          color: color.text.primary,
+        }}>
+          Start Timer
+        </h3>
+        <div style={{
+          fontSize: typography.fontSize.body,
+          color: color.ember.flame,
+          fontWeight: typography.fontWeight.medium,
+          marginBottom: '16px',
+        }}>
+          {client.name} — {getBillingLabel(client)}
         </div>
-        
-        <div>
-          <label style={labelStyle}>Rate ($/hr)</label>
-          <input
-            type="number"
-            style={inputStyle}
-            value={form.rate}
-            onChange={(e) => setForm({ ...form, rate: e.target.value })}
-            placeholder="Auto-filled"
-          />
-        </div>
-      </div>
-      
-      <div style={{ marginBottom: '12px' }}>
-        <label style={labelStyle}>Description *</label>
-        <input
-          style={inputStyle}
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          placeholder="What are you working on?"
-          required
-        />
-      </div>
-      
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', marginBottom: '16px' }}>
-        <div>
-          <label style={labelStyle}>Tags (optional)</label>
-          <input
-            style={inputStyle}
-            value={form.tags}
-            onChange={(e) => setForm({ ...form, tags: e.target.value })}
-            placeholder="api, troubleshooting, setup"
-          />
-        </div>
-        
-        <div style={{ display: 'flex', alignItems: 'end', gap: '8px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, marginBottom: '4px', display: 'block' }}>
+              What are you working on? *
+            </label>
+            <input
+              style={inputStyle}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. API integration, bug fix..."
+              autoFocus
+              required
+            />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', marginBottom: '12px' }}>
+            <div>
+              <label style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, marginBottom: '4px', display: 'block' }}>
+                Tags (optional)
+              </label>
+              <input
+                style={inputStyle}
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="api, troubleshooting"
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, marginBottom: '4px', display: 'block' }}>
+                Rate $/hr
+              </label>
+              <input
+                type="number"
+                style={{ ...inputStyle, width: '80px' }}
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
             <input
               type="checkbox"
-              checked={form.billable}
-              onChange={(e) => setForm({ ...form, billable: e.target.checked })}
+              checked={billable}
+              onChange={(e) => setBillable(e.target.checked)}
               style={{ accentColor: color.ember.DEFAULT }}
             />
-            <span style={{ fontSize: typography.fontSize.caption, color: color.text.secondary }}>
-              Billable
-            </span>
-          </label>
-        </div>
+            <span style={{ fontSize: typography.fontSize.caption, color: color.text.secondary }}>Billable</span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: '8px 18px',
+                background: 'none',
+                border: `1px solid ${color.glass.border}`,
+                borderRadius: radius.md,
+                color: color.text.secondary,
+                cursor: 'pointer',
+                fontSize: typography.fontSize.body,
+              }}
+            >
+              Cancel
+            </button>
+            <EmberButton type="submit">
+              ▶ Start
+            </EmberButton>
+          </div>
+        </form>
       </div>
-      
-      <EmberButton type="submit">
-        ▶️ Start Timer
-      </EmberButton>
-    </form>
+    </div>
   );
 }
 
-// Time Entry Row Component
+// ─── Time Entry Row ─────────────────────────────────────────────
+
 function TimeEntryRow({
   entry,
-  onUpdate,
   onDelete,
 }: {
   entry: TimeEntry;
   onUpdate: (id: string, updates: Partial<TimeEntry>) => void;
   onDelete: (id: string) => void;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
-
-  const formatDuration = (minutes: number): string => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
+  const calcValue = (): number => {
+    if (!entry.billable || !entry.rate || !entry.duration) return 0;
+    return (entry.duration / 60) * entry.rate;
   };
 
-  const formatDate = (isoDate: string): string => {
-    const date = new Date(isoDate);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
-  const calculateValue = (): string => {
-    if (!entry.billable || !entry.rate || !entry.duration) return '$0';
-    const hours = entry.duration / 60;
-    return `$${(hours * entry.rate).toFixed(2)}`;
-  };
+  const value = calcValue();
 
   return (
     <div style={{
       display: 'grid',
-      gridTemplateColumns: '1fr auto 80px 80px 100px auto',
+      gridTemplateColumns: '1fr auto 80px 80px auto',
       gap: '12px',
       alignItems: 'center',
-      padding: '12px',
-      background: entry.isRunning ? 'rgba(255, 107, 53, 0.05)' : color.bg.surface,
-      border: `1px solid ${entry.isRunning ? color.glass.borderHover : color.glass.border}`,
+      padding: '10px 12px',
+      background: color.bg.surface,
+      border: `1px solid ${color.glass.border}`,
       borderRadius: radius.md,
-      marginBottom: '8px',
+      marginBottom: '6px',
     }}>
-      <div>
-        <div style={{ 
-          fontWeight: typography.fontWeight.semibold, 
+      <div style={{ minWidth: 0 }}>
+        <div style={{
+          fontWeight: typography.fontWeight.semibold,
           color: color.text.primary,
+          fontSize: typography.fontSize.body,
           marginBottom: '2px',
         }}>
           {entry.clientName}
         </div>
-        <div style={{ 
-          color: color.text.secondary, 
-          fontSize: typography.fontSize.body,
-          marginBottom: '4px',
+        <div style={{
+          color: color.text.secondary,
+          fontSize: typography.fontSize.caption,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         }}>
           {entry.description}
         </div>
         {entry.tags.length > 0 && (
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
             {entry.tags.map(tag => (
-              <span
-                key={tag}
-                style={{
-                  fontSize: typography.fontSize.metadata,
-                  color: color.text.dim,
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  padding: '2px 6px',
-                  borderRadius: radius.sm,
-                }}
-              >
+              <span key={tag} style={{
+                fontSize: typography.fontSize.metadata,
+                color: color.text.dim,
+                background: 'rgba(255,255,255,0.05)',
+                padding: '1px 6px',
+                borderRadius: radius.sm,
+              }}>
                 {tag}
               </span>
             ))}
@@ -332,69 +544,57 @@ function TimeEntryRow({
         )}
       </div>
 
-      <div style={{ fontSize: typography.fontSize.caption, color: color.text.dim }}>
-        {formatDate(entry.startTime)}
+      <div style={{ fontSize: typography.fontSize.caption, color: color.text.dim, whiteSpace: 'nowrap' }}>
+        {new Date(entry.startTime).toLocaleDateString()} {new Date(entry.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
       </div>
 
-      <div style={{ 
-        textAlign: 'center', 
-        fontWeight: typography.fontWeight.semibold,
-        color: entry.duration ? color.text.primary : color.text.dim,
-      }}>
-        {entry.duration ? formatDuration(entry.duration) : (entry.isRunning ? '⏱️' : '0m')}
-      </div>
-
-      <div style={{ 
+      <div style={{
         textAlign: 'center',
-        color: entry.billable ? color.status.healthy : color.text.dim,
-      }}>
-        {entry.billable ? '💰' : '—'}
-      </div>
-
-      <div style={{ 
-        textAlign: 'right', 
         fontWeight: typography.fontWeight.semibold,
-        color: entry.billable && entry.rate ? color.ember.flame : color.text.dim,
+        color: color.text.primary,
+        fontVariantNumeric: 'tabular-nums',
       }}>
-        {calculateValue()}
+        {entry.duration ? formatDuration(entry.duration) : '—'}
       </div>
 
-      <div style={{ display: 'flex', gap: '4px' }}>
-        <button
-          onClick={() => setIsEditing(!isEditing)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: color.text.secondary,
-            cursor: 'pointer',
-            fontSize: typography.fontSize.metadata,
-          }}
-        >
-          ✏️
-        </button>
-        <button
-          onClick={() => onDelete(entry.id)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: color.status.error,
-            cursor: 'pointer',
-            fontSize: typography.fontSize.metadata,
-          }}
-        >
-          🗑️
-        </button>
+      <div style={{
+        textAlign: 'right',
+        fontWeight: typography.fontWeight.semibold,
+        color: value > 0 ? color.ember.flame : color.text.dim,
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        {value > 0 ? formatMoney(value) : '—'}
       </div>
+
+      <button
+        onClick={() => onDelete(entry.id)}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: color.text.dim,
+          cursor: 'pointer',
+          fontSize: typography.fontSize.metadata,
+          padding: '4px',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = color.status.error; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = color.text.dim; }}
+      >
+        🗑️
+      </button>
     </div>
   );
 }
 
-// Main TimeTracker Component
+// ─── Main TimeTracker Component ─────────────────────────────────
+
 export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
   const [timeData, setTimeData] = useState<TimeEntriesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [quickStartClient, setQuickStartClient] = useState<Client | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const activeClients = clients.filter(c => c.status === 'active');
 
   // Fetch time entries
   const fetchTimeEntries = useCallback(async () => {
@@ -410,36 +610,20 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
     }
   }, []);
 
-  useEffect(() => {
-    fetchTimeEntries();
-  }, [fetchTimeEntries]);
+  useEffect(() => { fetchTimeEntries(); }, [fetchTimeEntries]);
 
-  // Timer logic
+  // Timer tick
   useEffect(() => {
     if (timeData?.activeTimer) {
       const startTime = new Date(timeData.activeTimer.startedAt).getTime();
-      
-      const updateTimer = () => {
-        const now = Date.now();
-        const elapsed = Math.floor((now - startTime) / 1000);
-        setElapsedSeconds(elapsed);
-      };
-      
-      updateTimer(); // Initial calculation
-      intervalRef.current = setInterval(updateTimer, 1000);
+      const tick = () => setElapsedSeconds(Math.floor((Date.now() - startTime) / 1000));
+      tick();
+      intervalRef.current = setInterval(tick, 1000);
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
       setElapsedSeconds(0);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     }
-    
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [timeData?.activeTimer]);
 
   // Start timer
@@ -451,6 +635,7 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
         body: JSON.stringify(entry),
       });
       if (!response.ok) throw new Error('Failed to start timer');
+      setQuickStartClient(null);
       await fetchTimeEntries();
     } catch (error) {
       console.error('Error starting timer:', error);
@@ -460,15 +645,11 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
   // Stop timer
   const handleStopTimer = async () => {
     if (!timeData?.activeTimer) return;
-    
     try {
       const response = await fetch('/api/time-entries', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: timeData.activeTimer.entryId, 
-          action: 'stop' 
-        }),
+        body: JSON.stringify({ id: timeData.activeTimer.entryId, action: 'stop' }),
       });
       if (!response.ok) throw new Error('Failed to stop timer');
       await fetchTimeEntries();
@@ -495,11 +676,8 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
   // Delete entry
   const handleDeleteEntry = async (id: string) => {
     if (!confirm('Delete this time entry?')) return;
-    
     try {
-      const response = await fetch(`/api/time-entries?id=${id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/time-entries?id=${id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error('Failed to delete entry');
       await fetchTimeEntries();
     } catch (error) {
@@ -508,18 +686,13 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
   };
 
   if (isLoading) {
-    return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '40px', 
-        color: color.text.dim 
-      }}>
-        Loading time tracker...
-      </div>
-    );
+    return <div style={{ textAlign: 'center', padding: '40px', color: color.text.dim }}>Loading time tracker...</div>;
   }
 
   const activeEntry = timeData?.entries.find(e => e.isRunning) || null;
+  const activeClient = activeEntry ? clients.find(c => c.id === activeEntry.clientId) : undefined;
+  const isTimerRunning = !!activeEntry;
+
   const recentEntries = timeData?.entries
     .filter(e => !e.isRunning)
     .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime())
@@ -528,49 +701,56 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Active Timer */}
+      {activeEntry && (
+        <ActiveTimer
+          entry={activeEntry}
+          elapsedSeconds={elapsedSeconds}
+          client={activeClient}
+          onStop={handleStopTimer}
+        />
+      )}
+
+      {/* Client Quick Start Grid */}
       <GlassCard>
-        <div style={{ marginBottom: '16px' }}>
+        <div style={{ marginBottom: '12px' }}>
           <h3 style={{
-            margin: '0 0 8px 0',
-            color: color.ember.flame,
+            margin: 0,
+            color: isTimerRunning ? color.text.secondary : color.text.primary,
             fontSize: typography.fontSize.pageTitle,
             fontWeight: typography.fontWeight.semibold,
           }}>
-            Active Timer
+            {isTimerRunning ? 'Clients' : 'Start Timer'}
           </h3>
-        </div>
-        <Timer
-          activeEntry={activeEntry}
-          elapsedSeconds={elapsedSeconds}
-          onStop={handleStopTimer}
-        />
-      </GlassCard>
-
-      {/* Start New Timer */}
-      {!activeEntry && (
-        <GlassCard>
-          <div style={{ marginBottom: '16px' }}>
-            <h3 style={{
-              margin: '0 0 8px 0',
-              color: color.text.primary,
-              fontSize: typography.fontSize.pageTitle,
-              fontWeight: typography.fontWeight.semibold,
-            }}>
-              Start Timer
-            </h3>
+          <div style={{ fontSize: typography.fontSize.caption, color: color.text.dim, marginTop: '4px' }}>
+            {isTimerRunning
+              ? 'Stop the current timer to start a new one'
+              : `${activeClients.length} active clients`}
           </div>
-          <StartTimerForm
-            clients={clients}
-            onStart={handleStartTimer}
-          />
-        </GlassCard>
-      )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '8px' }}>
+          {activeClients.map(client => (
+            <ClientPlayCard
+              key={client.id}
+              client={client}
+              isTimerRunning={isTimerRunning}
+              onQuickStart={(c) => setQuickStartClient(c)}
+            />
+          ))}
+        </div>
+
+        {activeClients.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '20px', color: color.text.dim }}>
+            No active clients. Add clients in Client Command first.
+          </div>
+        )}
+      </GlassCard>
 
       {/* Recent Time Entries */}
       <GlassCard>
-        <div style={{ marginBottom: '16px' }}>
+        <div style={{ marginBottom: '12px' }}>
           <h3 style={{
-            margin: '0 0 8px 0',
+            margin: 0,
             color: color.text.primary,
             fontSize: typography.fontSize.pageTitle,
             fontWeight: typography.fontWeight.semibold,
@@ -578,13 +758,9 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
             Recent Entries
           </h3>
         </div>
-        
+
         {recentEntries.length === 0 ? (
-          <div style={{ 
-            textAlign: 'center', 
-            color: color.text.dim, 
-            padding: '20px' 
-          }}>
+          <div style={{ textAlign: 'center', color: color.text.dim, padding: '20px' }}>
             No time entries yet
           </div>
         ) : (
@@ -600,6 +776,15 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
           </div>
         )}
       </GlassCard>
+
+      {/* Quick Start Modal */}
+      {quickStartClient && (
+        <QuickStartModal
+          client={quickStartClient}
+          onStart={handleStartTimer}
+          onClose={() => setQuickStartClient(null)}
+        />
+      )}
     </div>
   );
 }

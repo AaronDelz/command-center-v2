@@ -161,10 +161,12 @@ export function StreakCounter({
         </div>
       </GlassCard>
 
-      {/* Total Impressions */}
+      {/* Total Impressions / Engagement */}
       <GlassCard hover={false} padding="md">
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '1.2rem', marginBottom: '4px' }}>👁️</div>
+          <div style={{ fontSize: '1.2rem', marginBottom: '4px' }}>
+            {totalImpressions > 0 ? '👁️' : '📈'}
+          </div>
           <div
             style={{
               fontSize: '2rem',
@@ -186,6 +188,18 @@ export function StreakCounter({
           >
             Total Impressions
           </div>
+          {totalImpressions === 0 && (
+            <div
+              style={{
+                fontSize: typography.fontSize.metadata,
+                color: color.text.dim,
+                marginTop: '8px',
+                fontStyle: 'italic',
+              }}
+            >
+              Connect analytics to track
+            </div>
+          )}
         </div>
       </GlassCard>
 

@@ -178,3 +178,24 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     );
   }
 }
+
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
+  try {
+    const { id } = await request.json();
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    const data = await readNotesData();
+    const before = data.notes.length;
+    data.notes = data.notes.filter((n: Note) => n.id !== id);
+
+    if (data.notes.length === before) {
+      return NextResponse.json({ error: 'Note not found' }, { status: 404 });
+    }
+
+    await writeNotesData(data.notes);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('DELETE /api/notes error:', error);
+    return NextResponse.json({ error: 'Failed to delete note' }, { status: 500 });
+  }
+}

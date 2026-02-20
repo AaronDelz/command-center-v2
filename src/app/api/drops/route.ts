@@ -260,3 +260,24 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     );
   }
 }
+
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
+  try {
+    const { id } = await request.json();
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    const data = await readDropsData();
+    const before = data.drops.length;
+    data.drops = data.drops.filter((d: Drop) => d.id !== id);
+
+    if (data.drops.length === before) {
+      return NextResponse.json({ error: 'Drop not found' }, { status: 404 });
+    }
+
+    await writeDropsData({ ...data, lastUpdated: new Date().toISOString() });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('DELETE /api/drops error:', error);
+    return NextResponse.json({ error: 'Failed to delete drop' }, { status: 500 });
+  }
+}

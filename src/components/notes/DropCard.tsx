@@ -84,6 +84,7 @@ interface DropCardProps {
   item: UnifiedItem;
   onPromote?: (item: UnifiedItem) => void;
   onArchive?: (item: UnifiedItem) => void;
+  onDelete?: (item: UnifiedItem) => void;
   onUpdate?: (item: UnifiedItem) => void;
   showArchiveView?: boolean;
   selectionMode?: boolean;
@@ -91,7 +92,7 @@ interface DropCardProps {
   onToggleSelect?: (id: string) => void;
 }
 
-export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView, selectionMode, selected, onToggleSelect }: DropCardProps): React.ReactElement {
+export function DropCard({ item, onPromote, onArchive, onDelete, onUpdate, showArchiveView, selectionMode, selected, onToggleSelect }: DropCardProps): React.ReactElement {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(item.title || '');
@@ -149,6 +150,21 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
       console.error('Save failed:', err);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!confirm('Delete this item permanently? This cannot be undone.')) return;
+    try {
+      const endpoint = item.source === 'note' ? '/api/notes' : '/api/drops';
+      await fetch(endpoint, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id }),
+      });
+      onDelete?.(item);
+    } catch (err) {
+      console.error('Delete failed:', err);
     }
   }
 
@@ -494,6 +510,9 @@ export function DropCard({ item, onPromote, onArchive, onUpdate, showArchiveView
                   </EmberButton>
                   <EmberButton variant="ghost" size="sm" onClick={() => { setEditing(true); setExpanded(true); }}>
                     ✏️
+                  </EmberButton>
+                  <EmberButton variant="ghost" size="sm" onClick={handleDelete} className="opacity-60 hover:opacity-100">
+                    🗑️
                   </EmberButton>
                 </>
               )}

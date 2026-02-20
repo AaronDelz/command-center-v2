@@ -9,18 +9,26 @@ interface ActivityLog {
   action: string;
 }
 
-function formatTime(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-}
-
-function formatDate(dateStr: string): string {
+function formatRelativeTime(dateStr: string): string {
   const d = new Date(dateStr);
   const now = new Date();
-  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-  if (diffDays === 0) return 'Today';
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHr < 24) return `${diffHr}h ago`;
   if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays}d ago`;
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function isStale(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return (now.getTime() - d.getTime()) > 6 * 3600000; // >6 hours = stale
 }
 
 function getStateDot(action: string): { color: string; label: string } {
@@ -45,9 +53,24 @@ export function ActivityFeed(): React.ReactElement {
       });
   }, []);
 
+  const stale = logs.length > 0 && isStale(logs[0].time);
+
   return (
     <GlassCard padding="md">
       <SectionHeading title="Activity" icon={<span>⚡</span>} size="sm" />
+
+      {stale && logs.length > 0 && (
+        <div style={{
+          fontSize: typography.fontSize.metadata,
+          color: color.text.dim,
+          marginBottom: '8px',
+          padding: '6px 10px',
+          borderRadius: '6px',
+          background: 'rgba(255,255,255,0.03)',
+        }}>
+          ⏸ Last activity: {formatRelativeTime(logs[0].time)}
+        </div>
+      )}
 
       {logs.length === 0 ? (
         <p style={{ fontSize: typography.fontSize.caption, color: color.text.dim, margin: 0 }}>
@@ -106,7 +129,7 @@ export function ActivityFeed(): React.ReactElement {
                     color: color.text.dim,
                   }}
                 >
-                  {formatTime(log.time)}
+                  {formatRelativeTime(log.time)}
                 </span>
               </div>
             );

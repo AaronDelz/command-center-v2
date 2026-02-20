@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { readClientsData, writeClientsData } from '@/lib/data';
-import type { Client } from '@/lib/types';
+import type { Client, ClientStatus } from '@/lib/types';
 
 export async function GET(): Promise<NextResponse> {
   try {
@@ -46,9 +46,11 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     }
 
     const client = { ...data.clients[idx] };
-    const allowedFields = ['name', 'contact', 'business', 'status', 'rate', 'revenueModel',
-      'avgMonthly', 'projectValue', 'monthlyRetainer', 'since', 'lastActivity',
-      'tags', 'notes', 'link', 'dueDate', 'paymentStatus', 'hourlyRate', 'monthlyTotal'];
+    const allowedFields = ['name', 'businessName', 'contact', 'email', 'phone', 'business',
+      'status', 'rate', 'revenueModel', 'paymentType', 'avgMonthly', 'projectValue',
+      'monthlyRetainer', 'retainerAmount', 'projectAmount', 'since', 'startDate',
+      'lastActivity', 'tags', 'notes', 'link', 'dueDate', 'paymentStatus',
+      'invoiceStatus', 'hourlyRate', 'monthlyTotal'];
 
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
@@ -63,5 +65,30 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     console.error('PATCH /api/clients error:', error);
     return NextResponse.json({ error: 'Failed to update client' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest): Promise<NextResponse> {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) {
+      return NextResponse.json({ error: 'Client ID is required' }, { status: 400 });
+    }
+
+    const data = await readClientsData();
+    const idx = data.clients.findIndex((c) => c.id === id);
+    if (idx === -1) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
+    // Soft delete — set status to closed
+    data.clients[idx] = { ...data.clients[idx], status: 'closed' as ClientStatus };
+    data.lastUpdated = new Date().toISOString();
+    await writeClientsData(data);
+    return NextResponse.json({ success: true, client: data.clients[idx] });
+  } catch (error) {
+    console.error('DELETE /api/clients error:', error);
+    return NextResponse.json({ error: 'Failed to delete client' }, { status: 500 });
   }
 }

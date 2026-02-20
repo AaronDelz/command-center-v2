@@ -47,6 +47,8 @@ const PLATFORM_ICONS: Record<string, string> = {
 };
 
 export function DraftQueue({ drafts, pillars, onStatusChange, onEdit }: DraftQueueProps): React.ReactElement {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
   const sorted = [...drafts].sort((a, b) => {
     const aIdx = STATUS_ORDER.indexOf(a.status);
     const bIdx = STATUS_ORDER.indexOf(b.status);
@@ -71,27 +73,42 @@ export function DraftQueue({ drafts, pillars, onStatusChange, onEdit }: DraftQue
           return (
             <div
               key={draft.id}
-              onClick={() => onEdit?.(draft)}
+              onClick={() => {
+                if (onEdit) {
+                  onEdit(draft);
+                } else {
+                  setExpandedId(expandedId === draft.id ? null : draft.id);
+                }
+              }}
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                padding: '12px 16px',
+                flexDirection: 'column',
+                gap: '0px',
+                padding: '0',
                 borderRadius: radius.lg,
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: `1px solid ${color.glass.border}`,
+                background: expandedId === draft.id ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.02)',
+                border: `1px solid ${expandedId === draft.id ? color.glass.borderHover : color.glass.border}`,
                 cursor: 'pointer',
                 transition: `all ${animation.duration.normal} ${animation.easing.default}`,
+                overflow: 'hidden',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = color.glass.borderHover;
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                if (expandedId !== draft.id) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = color.glass.border;
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                if (expandedId !== draft.id) {
+                  e.currentTarget.style.borderColor = color.glass.border;
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                }
               }}
             >
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '12px 16px',
+            }}>
               {/* Pillar color bar */}
               <div
                 style={{
@@ -176,6 +193,48 @@ export function DraftQueue({ drafts, pillars, onStatusChange, onEdit }: DraftQue
               >
                 {statusConf.icon} {statusConf.label}
               </div>
+            </div>
+
+            {/* Expandable content preview */}
+            {expandedId === draft.id && draft.content && (
+              <div style={{
+                padding: '0 16px 14px 16px',
+                borderTop: `1px solid ${color.glass.border}`,
+                marginTop: '0',
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.body,
+                  color: color.text.secondary,
+                  lineHeight: 1.6,
+                  paddingTop: '12px',
+                  whiteSpace: 'pre-wrap',
+                }}>
+                  {draft.content}
+                </div>
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  marginTop: '10px',
+                  fontSize: typography.fontSize.caption,
+                  color: color.text.dim,
+                }}>
+                  <span>Created {new Date(draft.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  <span>·</span>
+                  <span>{draft.type}</span>
+                </div>
+              </div>
+            )}
+            {expandedId === draft.id && !draft.content && (
+              <div style={{
+                padding: '8px 16px 14px 16px',
+                borderTop: `1px solid ${color.glass.border}`,
+                fontSize: typography.fontSize.body,
+                color: color.text.dim,
+                fontStyle: 'italic',
+              }}>
+                No content yet — click status pill to advance this draft
+              </div>
+            )}
             </div>
           );
         })}

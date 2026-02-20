@@ -1,73 +1,38 @@
-# Command Center V2 Missing Features
+# Forge Build — Feb 18, 2026
 
-## Status: ✅ COMPLETE
+## Tasks
 
-## Plan
-
-### 1. Owner Filter on Kanban
-- [x] Add `ownerFilter` state to KanbanBoard.tsx
-- [x] Add filter buttons (All | Aaron | Orion) in header
-- [x] Pass filter to KanbanColumn
-- [x] Filter cards before rendering in KanbanColumn
-
-### 2. Replies on Quick Notes  
-- [x] Update Note type in types.ts to include optional `replies` array
-- [x] Update RawNote interface in data.ts to include replies
-- [x] Preserve replies when writing notes
-- [x] Update NotesList.tsx to show reply count
-- [x] Add expand/collapse to show replies
-
-### 3. Drag and Drop Cards
-- [x] Add drag handlers to KanbanCard (draggable, onDragStart)
-- [x] Add drop handlers to KanbanColumn (onDragOver, onDrop)
-- [x] Add onMoveCard callback to KanbanBoard
-- [x] Uses existing PATCH endpoint for column moves
-- [x] Visual feedback during drag (opacity, border highlight)
-
-### 4. Reports Section in Docs
-- [x] Add Report type to types.ts
-- [x] Create /api/reports route to read reports.json
-- [x] Add report content fetching (reads markdown files from clawd/)
-- [x] Update docs/page.tsx with sub-tabs: "Workspace Files" | "Reports"
-- [x] Reports list as card grid with category badges
-- [x] Reuses existing DocsViewer for report content display
-
----
+- [x] **Task 1a: Migration dry run** — Clean run, 147 billing periods, 41 new clients, 20 A2P regs, 479 drops
+- [x] **Task 1b: Real migration** — Executed. Files written: time.json, clients.json, a2p.json, drops.json. Backups at data/backups/2026-02-18T19-18-26/
+- [x] **Task 2a: Billing rotate endpoint** — Created `src/app/api/billing/rotate/route.ts`
+- [x] **Task 2b: New Month button** — Added to MonthlyBilling component header
+- [x] **Task 3: CSV export for billing** — Added Export CSV button to MonthlyBilling component
+- [x] **Task 4: Page audit** — All 5 pages (/clients /time /helm /notes /vault) compile clean, all data files exist
+- [x] **Task 5: Build verification** — `npx next build` passes, all 36 routes OK
+- [x] **Task 6: System event** — Fired via openclaw
 
 ## Review
 
-**Files Modified:**
-- `src/lib/types.ts` - Added NoteReply, Report, ReportsData interfaces
-- `src/lib/data.ts` - Added readReportsData, readReportContent functions; updated notes to preserve replies
-- `src/components/kanban/KanbanBoard.tsx` - Added owner filter state and UI, handleMoveCard function
-- `src/components/kanban/KanbanColumn.tsx` - Added drag/drop handlers, owner filtering
-- `src/components/kanban/KanbanCard.tsx` - Made draggable with visual feedback
-- `src/components/notes/NotesList.tsx` - Added expandable replies section
-- `src/app/docs/page.tsx` - Added section tabs and reports section
-- `src/app/api/reports/route.ts` - New API route for reports
+### Files Created
+- `src/app/api/billing/rotate/route.ts` — Idempotent POST endpoint that creates billing periods for active/pipeline clients for a given month/year. Carries forward retainer amounts from client config. Returns created/skipped summary.
 
-**Changes Made:**
+### Files Modified
+- `src/components/time/MonthlyBilling.tsx` — Added:
+  - "New Month" button (EmberButton primary) calls `/api/billing/rotate` with current viewed month/year
+  - "Export CSV" button (EmberButton ghost) downloads billing periods as CSV
+  - Status feedback message for rotate operations (auto-clears after 3s)
+  - Refactored `getClientName` to `useCallback` for proper dependency tracking
 
-1. **Owner Filter (KanbanBoard.tsx, KanbanColumn.tsx)**
-   - Added owner filter state with three options: 'all' | 'aaron' | 'orion'
-   - Filter buttons styled consistently with purple accent theme
-   - Cards filtered at column level, count shows filtered/total when filtering
+### Migration Results
+- **147 billing periods** imported spanning 2023-2026
+- **53 total clients** (12 existing + 41 historical stubs tagged `migrated-from-clickup`)
+- **110 A2P registrations** (90 existing + 20 new)
+- **485 drops** (6 existing + 479 from ClickUp tasks dump)
+- **$122,374 total revenue** tracked ($84,389 received)
+- Data backed up before migration
 
-2. **Replies on Notes (types.ts, data.ts, NotesList.tsx)**
-   - Extended Note type with NoteReply interface
-   - Replies show as collapsible section under each note
-   - Click to expand/collapse, shows reply author and timestamp
-
-3. **Drag and Drop (KanbanCard.tsx, KanbanColumn.tsx, KanbanBoard.tsx)**
-   - Native HTML5 drag/drop implementation (no external deps)
-   - Visual feedback: card becomes semi-transparent when dragging
-   - Column background highlights purple when dragging over
-   - Uses existing PATCH API to persist column changes
-
-4. **Reports Section (docs/page.tsx, api/reports/route.ts)**
-   - Docs page now has two sub-tabs: Workspace Files and Reports
-   - Reports fetched from reports.json, content from clawd/knowledge/reports/
-   - Report cards show title, description, category badge, date
-   - Clicking a report loads its markdown content via DocsViewer
-
-**No new dependencies added.** All features use native browser APIs and existing libraries.
+### Audit Results
+- All 5 audited pages compile without errors
+- All data files present and valid JSON
+- No broken imports or missing dependencies
+- Build produces 36 routes (all static pages + dynamic API routes)

@@ -242,6 +242,11 @@ main {
   50% { opacity: 0.8; transform: scale(1.05); }
 }
 
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
 /* Vault Markdown Styles */
 .vault-markdown h1 { font-size: 1.3rem; font-weight: 700; color: #e2e8f0; margin: 20px 0 10px; }
 .vault-markdown h2 { font-size: 1.1rem; font-weight: 600; color: #cbd5e1; margin: 18px 0 8px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px; }

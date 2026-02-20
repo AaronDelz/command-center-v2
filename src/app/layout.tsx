@@ -6,6 +6,7 @@ import { EmberParticles } from "@/components/ui/EmberParticles";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { FloatingDropButton } from "@/components/notes/FloatingDropButton";
+import { FloatingTimer } from "@/components/time/FloatingTimer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -55,6 +56,7 @@ export function RootLayout({
           {children}
         </main>
         <FloatingDropButton />
+        <FloatingTimer />
         <MobileNav />
       </body>
     </html>

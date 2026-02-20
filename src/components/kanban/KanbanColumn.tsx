@@ -9,6 +9,7 @@ interface KanbanColumnProps {
   ownerFilter?: 'all' | 'aaron' | 'orion' | 'none';
   clientFilter?: string;
   sortMode?: 'default' | 'dueDate' | 'priority';
+  compactMode?: boolean;
   hideDone?: boolean;
   onToggleHideDone?: () => void;
   onCardClick?: (cardId: string, columnId: string) => void;
@@ -30,18 +31,19 @@ function sortCards(cards: KanbanCardType[], mode: string): KanbanCardType[] {
   });
 }
 
-const columnConfig: Record<string, { emoji: string; label: string; accentColor: string; glowColor: string; isActive: boolean }> = {
-  todo:   { emoji: '📋', label: 'To Do',    accentColor: '#60a5fa', glowColor: 'rgba(96, 165, 250, 0.3)',  isActive: false },
-  ondeck: { emoji: '🎯', label: 'On Deck',  accentColor: '#ffb347', glowColor: 'rgba(255, 179, 71, 0.3)',  isActive: true },
-  doing:  { emoji: '🔨', label: 'Doing',    accentColor: '#ff6b35', glowColor: 'rgba(255, 107, 53, 0.4)',  isActive: true },
-  hold:   { emoji: '⏳', label: 'Hold',     accentColor: '#fbbf24', glowColor: 'rgba(251, 191, 36, 0.3)',  isActive: false },
-  done:   { emoji: '✅', label: 'Done',     accentColor: '#4ade80', glowColor: 'rgba(74, 222, 128, 0.3)',  isActive: false },
+// Warming column progression: cool → warm → hot → golden → green
+const columnConfig: Record<string, { emoji: string; label: string; accentColor: string; glowColor: string; headerBg: string; isActive: boolean }> = {
+  todo:   { emoji: '📋', label: 'To Do',    accentColor: '#8b9dc3', glowColor: 'rgba(139, 157, 195, 0.2)',  headerBg: 'rgba(139, 157, 195, 0.04)', isActive: false },
+  ondeck: { emoji: '🎯', label: 'On Deck',  accentColor: '#ffb347', glowColor: 'rgba(255, 179, 71, 0.25)', headerBg: 'rgba(255, 179, 71, 0.04)',  isActive: true },
+  doing:  { emoji: '🔨', label: 'Doing',    accentColor: '#ff6b35', glowColor: 'rgba(255, 107, 53, 0.35)', headerBg: 'rgba(255, 107, 53, 0.05)',  isActive: true },
+  hold:   { emoji: '⏳', label: 'Hold',     accentColor: '#a78bfa', glowColor: 'rgba(167, 139, 250, 0.2)', headerBg: 'rgba(167, 139, 250, 0.04)', isActive: false },
+  done:   { emoji: '✅', label: 'Done',     accentColor: '#4ade80', glowColor: 'rgba(74, 222, 128, 0.25)', headerBg: 'rgba(74, 222, 128, 0.03)',  isActive: false },
 };
 
-export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all', sortMode = 'default', hideDone = true, onToggleHideDone, onCardClick, onMoveCard }: KanbanColumnProps): React.ReactElement {
+export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all', sortMode = 'default', compactMode = false, hideDone = true, onToggleHideDone, onCardClick, onMoveCard }: KanbanColumnProps): React.ReactElement {
   const [isDragOver, setIsDragOver] = useState(false);
   const isDone = column.id === 'done';
-  const config = columnConfig[column.id] ?? { emoji: '📋', label: column.title, accentColor: '#60a5fa', glowColor: 'rgba(96, 165, 250, 0.3)', isActive: false };
+  const config = columnConfig[column.id] ?? { emoji: '📋', label: column.title, accentColor: '#60a5fa', glowColor: 'rgba(96, 165, 250, 0.3)', headerBg: 'rgba(96, 165, 250, 0.03)', isActive: false };
 
   let filteredCards = ownerFilter === 'all'
     ? column.cards
@@ -70,6 +72,9 @@ export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all'
 
   const displayCount = ownerFilter === 'all' && clientFilter === 'all' ? cardCount : `${cardCount}/${totalCount}`;
 
+  // Count high priority cards for column urgency indicator
+  const highPriorityCount = filteredCards.filter(c => c.priority === 'high').length;
+
   return (
     <div
       className="flex flex-col min-w-[75vw] max-w-[75vw] md:min-w-[280px] md:max-w-[280px] snap-start flex-shrink-0"
@@ -81,7 +86,7 @@ export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all'
       {/* Column Header */}
       <div
         style={{
-          background: 'rgba(255, 255, 255, 0.03)',
+          background: config.headerBg,
           backdropFilter: 'blur(20px) saturate(150%)',
           WebkitBackdropFilter: 'blur(20px) saturate(150%)',
           borderTop: `2px solid ${config.accentColor}`,
@@ -89,7 +94,7 @@ export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all'
           borderRight: '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: '12px 12px 0 0',
           padding: '10px 12px',
-          boxShadow: config.isActive ? `0 -2px 12px ${config.glowColor}` : 'none',
+          boxShadow: config.isActive ? `0 -2px 16px ${config.glowColor}` : 'none',
           transition: 'box-shadow 200ms ease',
         }}
       >
@@ -108,6 +113,18 @@ export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all'
             >
               {config.label}
             </h3>
+            {/* High priority indicator */}
+            {highPriorityCount > 0 && !isDone && (
+              <span style={{
+                fontSize: '0.5625rem', fontWeight: 600,
+                padding: '0px 5px', borderRadius: '9999px',
+                background: 'rgba(255, 69, 0, 0.15)',
+                border: '1px solid rgba(255, 69, 0, 0.3)',
+                color: '#ff4500',
+              }}>
+                {highPriorityCount} 🔥
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             {isDone && onToggleHideDone && (
@@ -177,6 +194,7 @@ export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all'
               key={card.id}
               card={card}
               columnId={column.id}
+              compact={compactMode}
               onClick={() => onCardClick?.(card.id, column.id)}
             />
           ))

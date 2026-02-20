@@ -50,13 +50,14 @@ function unifyItems(drops: Drop[], notes: Note[]): UnifiedItem[] {
 
   for (const note of notes) {
     let type: UnifiedItem['type'] = 'note';
-    if (note.text.includes('?') && note.text.split('?').length > 3) type = 'question';
+    const noteText = note.text || (note as unknown as Record<string, string>).content || '';
+    if (noteText.includes('?') && noteText.split('?').length > 3) type = 'question';
 
     items.push({
       id: note.id,
       shortId: generateNoteShortId(note.id),
       type,
-      content: note.text,
+      content: noteText,
       status: note.done ? 'archived' : 'new',
       createdAt: note.createdAt || new Date().toISOString(),
       tags: note.tags,
@@ -182,6 +183,14 @@ export default function NotesPage(): React.ReactElement {
     await fetchData();
   }
 
+  function handleDelete(item: UnifiedItem) {
+    if (item.source === 'drop') {
+      setDrops((prev) => prev.filter((d) => d.id !== item.id));
+    } else {
+      setNotes((prev) => prev.filter((n) => n.id !== item.id));
+    }
+  }
+
   function handleUpdate() {
     fetchData();
   }
@@ -299,6 +308,7 @@ export default function NotesPage(): React.ReactElement {
           items={filteredItems}
           onPromote={(item) => setPromoteItem(item)}
           onArchive={handleArchive}
+          onDelete={handleDelete}
           onUpdate={handleUpdate}
           showArchiveView={showArchive}
           selectionMode={selectionMode}

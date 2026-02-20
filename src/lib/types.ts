@@ -173,29 +173,39 @@ export interface GoalsData {
 
 // Client Types
 
-export type ClientStatus = 'active' | 'pipeline' | 'paused' | 'completed';
+export type ClientStatus = 'active' | 'pipeline' | 'paused' | 'closed';
 export type PaymentStatus = 'pending' | 'invoiceSent' | 'received' | 'completed';
+export type PaymentType = 'retainer' | 'hourly' | 'one-off';
+export type InvoiceStatus = 'unpaid' | 'sent' | 'paid';
 
 export interface Client {
   id: string;
   name: string;
+  businessName?: string;
   contact: string;
+  email?: string;
+  phone?: string;
   business: string;
   status: ClientStatus;
   rate: string;
   revenueModel: 'hourly' | 'project' | 'retainer';
+  paymentType?: PaymentType;
   avgMonthly?: number;
   projectValue?: number;
   monthlyRetainer?: number;
+  retainerAmount?: number;
+  projectAmount?: number;
   since: string;
+  startDate?: string;
   lastActivity: string;
   tags: string[];
   notes: string;
   link?: string;
   dueDate?: string;
   paymentStatus: PaymentStatus;
-  hourlyRate: number; // Numeric hourly rate for calculations
-  monthlyTotal?: number; // Total dollar amount billed/earned this month
+  invoiceStatus?: InvoiceStatus;
+  hourlyRate: number;
+  monthlyTotal?: number;
 }
 
 export interface ClientsData {

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GlassModal, GlassInput, GlassSelect, EmberButton } from '@/components/ui';
-import { color, radius } from '@/styles/tokens';
+import { color, radius, typography, animation } from '@/styles/tokens';
 import type { KanbanCard, KanbanColumn } from '@/lib/types';
 
 interface CardModalProps {
@@ -50,6 +50,42 @@ export function CardModal({
   const [client, setClient] = useState(card?.client ?? '');
   const [dueDate, setDueDate] = useState(card?.dueDate ?? '');
   const [columnId, setColumnId] = useState(currentColumnId);
+
+  // Client dropdown
+  const [clientNames, setClientNames] = useState<string[]>([]);
+  const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
+  const [addingNewClient, setAddingNewClient] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const clientDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Single source of truth: clients.json via Client Command
+    // NEVER pull client names from kanban cards or time entries — those can have garbage data
+    fetch('/api/clients')
+      .then((r) => r.json())
+      .then((data) => {
+        const names: string[] = (data.clients || [])
+          .filter((c: { name: string; status?: string }) => c.status !== 'closed')
+          .map((c: { name: string }) => c.name)
+          .filter(Boolean)
+          .sort();
+        setClientNames(names);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (clientDropdownRef.current && !clientDropdownRef.current.contains(e.target as Node)) {
+        setClientDropdownOpen(false);
+        setAddingNewClient(false);
+        setNewClientName('');
+      }
+    }
+    if (clientDropdownOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [clientDropdownOpen]);
 
   const handleSave = () => {
     const parsedTags = tags
@@ -231,12 +267,129 @@ export function CardModal({
             onChange={(e) => setDueDate(e.target.value)}
           />
 
-          <GlassInput
-            label="Client"
-            value={client}
-            onChange={(e) => setClient(e.target.value)}
-            placeholder="Client name (optional)..."
-          />
+          {/* Client dropdown */}
+          <div ref={clientDropdownRef} style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <label style={{ fontSize: '0.7rem', fontWeight: 500, color: color.text.secondary, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Client
+            </label>
+            <button
+              type="button"
+              onClick={() => { setClientDropdownOpen((o) => !o); setAddingNewClient(false); }}
+              style={{
+                padding: '10px 14px',
+                background: color.bg.surface,
+                border: `1px solid ${clientDropdownOpen ? color.ember.DEFAULT : color.glass.border}`,
+                borderRadius: radius.md,
+                color: client ? color.text.primary : color.text.dim,
+                fontSize: typography.fontSize.body,
+                textAlign: 'left',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                transition: `border-color ${animation.duration.fast}`,
+              }}
+            >
+              <span>{client || 'Select client (optional)…'}</span>
+              <span style={{ opacity: 0.5, fontSize: '0.7rem' }}>{clientDropdownOpen ? '▲' : '▼'}</span>
+            </button>
+
+            {clientDropdownOpen && (
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: 0,
+                right: 0,
+                background: '#1a1a24',
+                border: `1px solid ${color.glass.border}`,
+                borderRadius: radius.md,
+                zIndex: 9999,
+                maxHeight: '220px',
+                overflowY: 'auto',
+                boxShadow: '0 12px 32px rgba(0,0,0,0.7)',
+              }}>
+                {/* Clear option */}
+                <button
+                  type="button"
+                  onClick={() => { setClient(''); setClientDropdownOpen(false); }}
+                  style={{ width: '100%', padding: '9px 14px', background: 'none', border: 'none', color: color.text.dim, fontSize: typography.fontSize.body, textAlign: 'left', cursor: 'pointer', borderBottom: `1px solid ${color.glass.border}` }}
+                >
+                  — None —
+                </button>
+
+                {/* Client list */}
+                {clientNames.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => { setClient(name); setClientDropdownOpen(false); }}
+                    style={{
+                      width: '100%',
+                      padding: '9px 14px',
+                      background: client === name ? `${color.ember.DEFAULT}20` : 'none',
+                      border: 'none',
+                      color: client === name ? color.ember.DEFAULT : color.text.primary,
+                      fontSize: typography.fontSize.body,
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderBottom: `1px solid ${color.glass.border}20`,
+                    }}
+                    onMouseEnter={(e) => { if (client !== name) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                    onMouseLeave={(e) => { if (client !== name) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    {name}
+                  </button>
+                ))}
+
+                {/* Add new client */}
+                {!addingNewClient ? (
+                  <button
+                    type="button"
+                    onClick={() => setAddingNewClient(true)}
+                    style={{ width: '100%', padding: '10px 14px', background: 'none', border: 'none', borderTop: `1px solid ${color.glass.border}`, color: color.ember.DEFAULT, fontSize: typography.fontSize.body, textAlign: 'left', cursor: 'pointer', fontWeight: 500 }}
+                  >
+                    + Add New Client
+                  </button>
+                ) : (
+                  <div style={{ padding: '8px 10px', borderTop: `1px solid ${color.glass.border}`, display: 'flex', gap: '6px' }}>
+                    <input
+                      autoFocus
+                      value={newClientName}
+                      onChange={(e) => setNewClientName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newClientName.trim()) {
+                          const name = newClientName.trim();
+                          setClientNames((prev) => Array.from(new Set([...prev, name])).sort());
+                          setClient(name);
+                          setClientDropdownOpen(false);
+                          setAddingNewClient(false);
+                          setNewClientName('');
+                        }
+                        if (e.key === 'Escape') { setAddingNewClient(false); setNewClientName(''); }
+                      }}
+                      placeholder="Client name…"
+                      style={{ flex: 1, padding: '6px 10px', background: color.bg.surface, border: `1px solid ${color.ember.DEFAULT}`, borderRadius: radius.sm, color: color.text.primary, fontSize: typography.fontSize.body, outline: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const name = newClientName.trim();
+                        if (!name) return;
+                        setClientNames((prev) => Array.from(new Set([...prev, name])).sort());
+                        setClient(name);
+                        setClientDropdownOpen(false);
+                        setAddingNewClient(false);
+                        setNewClientName('');
+                      }}
+                      style={{ padding: '6px 12px', background: color.ember.DEFAULT, border: 'none', borderRadius: radius.sm, color: '#fff', fontSize: typography.fontSize.body, cursor: 'pointer', fontWeight: 500 }}
+                    >
+                      Add
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <GlassSelect
             label="Column"

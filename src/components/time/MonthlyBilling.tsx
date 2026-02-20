@@ -61,6 +61,8 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
   const [clients, setClients] = useState<Client[]>(propClients || []);
   const [isLoading, setIsLoading] = useState(true);
   const [advancing, setAdvancing] = useState<string | null>(null);
+  const [rotating, setRotating] = useState(false);
+  const [rotateMsg, setRotateMsg] = useState<string | null>(null);
 
   // Month navigation
   const now = new Date();
@@ -132,10 +134,10 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
   };
 
   // Get client name from ID
-  const getClientName = (clientId: string): string => {
+  const getClientName = useCallback((clientId: string): string => {
     const client = clients.find(c => c.id === clientId);
     return client?.name || clientId;
-  };
+  }, [clients]);
 
   // Summary calculations
   const summary = useMemo(() => {
@@ -162,12 +164,82 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
     });
   }, [billingPeriods]);
 
+  // Rotate: create billing periods for active clients
+  const handleRotate = useCallback(async () => {
+    setRotating(true);
+    setRotateMsg(null);
+    try {
+      const res = await fetch('/api/billing/rotate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month: viewMonth, year: viewYear }),
+      });
+      if (!res.ok) throw new Error('Failed to rotate');
+      const result = await res.json() as { created: string[]; skipped: string[] };
+      const msg = result.created.length > 0
+        ? `Created ${result.created.length} periods`
+        : 'All periods already exist';
+      setRotateMsg(msg);
+      if (result.created.length > 0) fetchData();
+      setTimeout(() => setRotateMsg(null), 3000);
+    } catch (error) {
+      console.error('Error rotating billing:', error);
+      setRotateMsg('Rotate failed');
+      setTimeout(() => setRotateMsg(null), 3000);
+    } finally {
+      setRotating(false);
+    }
+  }, [viewMonth, viewYear, fetchData]);
+
+  // Export billing periods as CSV
+  const handleExportCSV = useCallback(() => {
+    if (sortedPeriods.length === 0) return;
+
+    const headers = ['Client', 'Month', 'Year', 'Tracked', 'Retainer', 'Project', 'Total', 'Payment Status', 'Invoice Sent', 'Payment Received'];
+    const rows = sortedPeriods.map(p => [
+      getClientName(p.clientId),
+      String(p.month),
+      String(p.year),
+      p.incomeTracked.toFixed(2),
+      p.incomeRetainer.toFixed(2),
+      p.incomeProject.toFixed(2),
+      p.monthlyTotal.toFixed(2),
+      PAYMENT_STATUS_CONFIG[p.paymentStatus].label,
+      p.invoiceSentDate ?? '',
+      p.paymentReceivedDate ?? '',
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row =>
+        row.map(cell => {
+          const str = String(cell);
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        }).join(',')
+      ),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `billing-${viewYear}-${String(viewMonth).padStart(2, '0')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [sortedPeriods, viewMonth, viewYear, getClientName]);
+
   const fmt = (n: number) => n === 0 ? '—' : `$${Math.round(n).toLocaleString()}`;
 
   return (
     <GlassCard>
-      {/* Header with month navigation */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      {/* Header with month navigation + actions */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
         <SectionHeading title="Monthly Billing" />
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
@@ -196,6 +268,17 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
           >
             Next →
           </button>
+          <EmberButton size="sm" variant="primary" onClick={handleRotate} disabled={rotating}>
+            {rotating ? 'Creating...' : 'New Month'}
+          </EmberButton>
+          <EmberButton size="sm" variant="ghost" onClick={handleExportCSV} disabled={sortedPeriods.length === 0}>
+            Export CSV
+          </EmberButton>
+          {rotateMsg && (
+            <span style={{ fontSize: typography.fontSize.caption, color: color.status.healthy }}>
+              {rotateMsg}
+            </span>
+          )}
         </div>
       </div>
 

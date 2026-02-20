@@ -144,13 +144,20 @@ function FileCard({
 
 // ─── File Viewer ────────────────────────────────────────────────
 
-function FileViewer({ file }: { file: VaultFile | null }) {
+// System file categories that should NOT be editable
+const SYSTEM_CATEGORIES = ['system'];
+
+function FileViewer({ file, onSaved, recentFiles, onSelectFile }: { file: VaultFile | null; onSaved?: () => void; recentFiles?: VaultFile[]; onSelectFile?: (f: VaultFile) => void }) {
   const [content, setContent] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (!file) { setContent(null); return; }
+    if (!file) { setContent(null); setIsEditing(false); return; }
     setIsLoading(true);
+    setIsEditing(false);
     fetch(`/api/vault?id=${file.id}`)
       .then((r) => r.json())
       .then((data) => setContent(data.content || ''))
@@ -158,7 +165,43 @@ function FileViewer({ file }: { file: VaultFile | null }) {
       .finally(() => setIsLoading(false));
   }, [file]);
 
+  const isSystemFile = file ? SYSTEM_CATEGORIES.includes(file.category) : false;
+
+  const handleEdit = () => {
+    if (content) {
+      setEditContent(content);
+      setIsEditing(true);
+    }
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+    setEditContent('');
+  };
+
+  const handleSave = async () => {
+    if (!file) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/vault', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: file.id, content: editContent }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setContent(editContent);
+      setIsEditing(false);
+      onSaved?.();
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('Failed to save. Try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (!file) {
+    const recent = recentFiles?.slice(0, 5) || [];
     return (
       <div style={{
         display: 'flex',
@@ -168,10 +211,62 @@ function FileViewer({ file }: { file: VaultFile | null }) {
         height: '100%',
         minHeight: '400px',
         color: color.text.dim,
-        gap: '8px',
+        gap: '12px',
+        padding: '24px',
       }}>
         <span style={{ fontSize: '2.5rem' }}>📚</span>
         <span style={{ fontSize: '0.85rem' }}>Select a document to view</span>
+        {recent.length > 0 && (
+          <div style={{ marginTop: '16px', width: '100%', maxWidth: '320px' }}>
+            <div style={{
+              fontSize: '0.7rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: color.text.dim,
+              marginBottom: '8px',
+              textAlign: 'center',
+            }}>
+              Recently Modified
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {recent.map((f) => {
+                const meta = getCategoryMeta(f.category);
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => onSelectFile?.(f)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 12px',
+                      background: 'transparent',
+                      border: `1px solid ${color.glass.border}`,
+                      borderRadius: radius.md,
+                      color: color.text.secondary,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.2s',
+                      width: '100%',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = `${meta.color}12`;
+                      e.currentTarget.style.borderColor = `${meta.color}40`;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.borderColor = color.glass.border;
+                    }}
+                  >
+                    <span>{meta.icon}</span>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{f.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -196,6 +291,71 @@ function FileViewer({ file }: { file: VaultFile | null }) {
             {meta.label} · Modified {new Date(file.modifiedAt).toLocaleDateString()} · {(file.size / 1024).toFixed(1)}KB
           </div>
         </div>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {!isSystemFile && !isEditing && content && (
+            <button
+              onClick={handleEdit}
+              style={{
+                background: `${color.ember.flame}18`,
+                border: `1px solid ${color.ember.flame}40`,
+                borderRadius: radius.md,
+                color: color.ember.flame,
+                padding: '5px 12px',
+                fontSize: '0.7rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${color.ember.flame}30`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = `${color.ember.flame}18`;
+              }}
+            >
+              ✏️ Edit
+            </button>
+          )}
+          {isEditing && (
+            <>
+              <button
+                onClick={handleCancel}
+                style={{
+                  background: color.bg.surface,
+                  border: `1px solid ${color.glass.border}`,
+                  borderRadius: radius.md,
+                  color: color.text.secondary,
+                  padding: '5px 12px',
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                style={{
+                  background: isSaving ? color.text.dim : color.ember.flame,
+                  border: 'none',
+                  borderRadius: radius.md,
+                  color: '#000',
+                  padding: '5px 14px',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  cursor: isSaving ? 'wait' : 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {isSaving ? 'Saving...' : '💾 Save'}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -206,6 +366,32 @@ function FileViewer({ file }: { file: VaultFile | null }) {
       }}>
         {isLoading ? (
           <div style={{ textAlign: 'center', color: color.text.dim, padding: '40px' }}>Loading...</div>
+        ) : isEditing ? (
+          <textarea
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            style={{
+              width: '100%',
+              height: '100%',
+              minHeight: '400px',
+              background: `${color.bg.base}cc`,
+              border: `1px solid ${color.glass.border}`,
+              borderRadius: radius.md,
+              color: color.text.primary,
+              padding: '16px',
+              fontSize: '0.8rem',
+              lineHeight: 1.7,
+              fontFamily: 'monospace',
+              resize: 'vertical',
+              outline: 'none',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = `${color.ember.flame}60`;
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = color.glass.border;
+            }}
+          />
         ) : content ? (
           <div
             className="vault-markdown"
@@ -328,8 +514,18 @@ export default function VaultPage(): React.ReactElement {
         />
       </div>
 
-      {/* Split View: File List + Viewer */}
-      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '12px', minHeight: '500px' }}>
+      {/* Split View: Viewer + File List */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '12px', minHeight: '500px' }}>
+        {/* Viewer */}
+        <GlassCard padding="none" hover={false}>
+          <FileViewer
+            file={selectedFile}
+            onSaved={fetchFiles}
+            recentFiles={[...files].sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime())}
+            onSelectFile={setSelectedFile}
+          />
+        </GlassCard>
+
         {/* File List */}
         <div style={{
           display: 'flex',
@@ -359,11 +555,6 @@ export default function VaultPage(): React.ReactElement {
             </div>
           )}
         </div>
-
-        {/* Viewer */}
-        <GlassCard padding="none" hover={false}>
-          <FileViewer file={selectedFile} />
-        </GlassCard>
       </div>
     </div>
   );

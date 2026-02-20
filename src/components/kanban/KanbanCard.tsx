@@ -6,21 +6,15 @@ import type { KanbanCard as KanbanCardType } from '@/lib/types';
 interface KanbanCardProps {
   card: KanbanCardType;
   columnId: string;
+  compact?: boolean;
   onClick?: () => void;
 }
 
-const priorityBorderColors: Record<string, string> = {
-  high: '#ff4500',
-  medium: '#ffb347',
-  low: '#60a5fa',
-  none: 'rgba(255, 255, 255, 0.08)',
-};
-
-const priorityDotColors: Record<string, string> = {
-  high: '#ff4500',
-  medium: '#ffb347',
-  low: '#60a5fa',
-  none: '#555060',
+const priorityConfig: Record<string, { border: string; glow: string; dot: string; label: string }> = {
+  high:   { border: '#ff4500', glow: 'rgba(255, 69, 0, 0.25)',   dot: '#ff4500', label: '🔴' },
+  medium: { border: '#ffb347', glow: 'rgba(255, 179, 71, 0.15)', dot: '#ffb347', label: '🟡' },
+  low:    { border: '#60a5fa', glow: 'rgba(96, 165, 250, 0.12)', dot: '#60a5fa', label: '🔵' },
+  none:   { border: 'rgba(255, 255, 255, 0.08)', glow: 'none',   dot: '#555060', label: '' },
 };
 
 const ownerColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -28,34 +22,126 @@ const ownerColors: Record<string, { bg: string; text: string; border: string }> 
   orion: { bg: 'rgba(96, 165, 250, 0.12)', text: '#93c5fd', border: 'rgba(96, 165, 250, 0.25)' },
 };
 
-export function KanbanCard({ card, columnId, onClick }: KanbanCardProps): React.ReactElement {
+function getDueDateInfo(dueDate: string): { label: string; color: string; bg: string; borderColor: string; urgent: boolean } {
+  const now = new Date();
+  const due = new Date(dueDate + 'T23:59:59');
+  const diffDays = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const formatted = due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  if (diffDays < 0) {
+    return { label: `⚠️ ${formatted}`, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', borderColor: 'rgba(239, 68, 68, 0.3)', urgent: true };
+  } else if (diffDays <= 2) {
+    return { label: `🔥 ${formatted}`, color: '#ff6b35', bg: 'rgba(255, 107, 53, 0.12)', borderColor: 'rgba(255, 107, 53, 0.25)', urgent: true };
+  } else if (diffDays <= 7) {
+    return { label: `📅 ${formatted}`, color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.1)', borderColor: 'rgba(251, 191, 36, 0.2)', urgent: false };
+  } else {
+    return { label: `📅 ${formatted}`, color: '#8a8494', bg: 'rgba(255, 255, 255, 0.04)', borderColor: 'rgba(255, 255, 255, 0.08)', urgent: false };
+  }
+}
+
+function getSubtaskInfo(notes: string): { total: number; done: number } | null {
+  // Parse checklist-like patterns from notes: "- [x]", "✅", numbered items
+  const lines = notes.split('\n').filter(l => l.trim());
+  const checkboxLines = lines.filter(l => /^[\s]*[-*]\s*\[[ x]\]/i.test(l) || /^[\s]*\d+[\.)]\s/.test(l));
+  if (checkboxLines.length < 2) return null;
+  const done = lines.filter(l => /^[\s]*[-*]\s*\[x\]/i.test(l) || /✅/.test(l)).length;
+  return { total: checkboxLines.length, done };
+}
+
+export function KanbanCard({ card, columnId, compact = false, onClick }: KanbanCardProps): React.ReactElement {
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const priority = card.priority ?? 'none';
-  const borderColor = priorityBorderColors[priority];
-  const isOverdue = card.dueDate ? new Date(card.dueDate + 'T23:59:59') < new Date() : false;
+  const pConfig = priorityConfig[priority];
   const ownerStyle = ownerColors[card.owner.toLowerCase()] ?? ownerColors.aaron;
+  const dueDateInfo = card.dueDate ? getDueDateInfo(card.dueDate) : null;
+  const subtaskInfo = card.notes ? getSubtaskInfo(card.notes) : null;
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); }
-  };
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
     e.dataTransfer.setData('cardId', card.id);
     e.dataTransfer.setData('fromColumnId', columnId);
     e.dataTransfer.effectAllowed = 'move';
   };
-  const handleDragEnd = () => setIsDragging(false);
 
+  // Priority glow for high/medium cards
+  const priorityGlow = isHovered && priority !== 'none'
+    ? `0 0 20px ${pConfig.glow}, 0 8px 24px rgba(0, 0, 0, 0.4)`
+    : isHovered
+      ? '0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(255, 107, 53, 0.1)'
+      : '0 2px 8px rgba(0, 0, 0, 0.2)';
+
+  if (compact) {
+    // Compact card variant: single line, minimal info
+    return (
+      <div
+        onClick={onClick}
+        draggable
+        onDragStart={handleDragStart}
+        onDragEnd={() => setIsDragging(false)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } }}
+        style={{
+          background: isHovered ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.02)',
+          borderLeft: `3px solid ${pConfig.border}`,
+          borderRadius: '8px',
+          padding: '6px 10px',
+          cursor: 'grab',
+          opacity: isDragging ? 0.4 : 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          transition: 'all 150ms ease',
+        }}
+      >
+        {priority !== 'none' && (
+          <span style={{
+            width: '5px', height: '5px', borderRadius: '50%',
+            background: pConfig.dot, boxShadow: `0 0 4px ${pConfig.dot}`,
+            flexShrink: 0,
+          }} />
+        )}
+        <span style={{
+          fontSize: '0.75rem', color: '#f0ece6', fontWeight: 500,
+          flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const,
+        }}>
+          {card.title}
+        </span>
+        <span style={{
+          fontSize: '0.5rem', padding: '1px 5px', borderRadius: '9999px',
+          background: ownerStyle.bg, color: ownerStyle.text,
+          border: `1px solid ${ownerStyle.border}`,
+          textTransform: 'capitalize' as const, flexShrink: 0,
+        }}>
+          {card.owner}
+        </span>
+        {dueDateInfo && (
+          <span style={{
+            fontSize: '0.5rem', padding: '1px 5px', borderRadius: '9999px',
+            background: dueDateInfo.bg, color: dueDateInfo.color,
+            border: `1px solid ${dueDateInfo.borderColor}`,
+            flexShrink: 0, fontWeight: dueDateInfo.urgent ? 600 : 400,
+          }}>
+            {dueDateInfo.label}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // Full card
   return (
     <div
       onClick={onClick}
-      onKeyDown={handleKeyDown}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       draggable
       onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      onDragEnd={() => setIsDragging(false)}
       role="button"
       tabIndex={0}
       style={{
@@ -63,15 +149,13 @@ export function KanbanCard({ card, columnId, onClick }: KanbanCardProps): React.
         backdropFilter: 'blur(16px) saturate(140%)',
         WebkitBackdropFilter: 'blur(16px) saturate(140%)',
         border: `1px solid ${isHovered ? 'rgba(255, 107, 53, 0.25)' : 'rgba(255, 255, 255, 0.08)'}`,
-        borderLeft: `3px solid ${borderColor}`,
+        borderLeft: `3px solid ${pConfig.border}`,
         borderRadius: '10px',
         padding: '10px 12px',
         cursor: 'grab',
         opacity: isDragging ? 0.4 : 1,
         transform: isHovered ? 'translateY(-2px)' : 'none',
-        boxShadow: isHovered
-          ? '0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(255, 107, 53, 0.1)'
-          : '0 2px 8px rgba(0, 0, 0, 0.2)',
+        boxShadow: priorityGlow,
         transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
         position: 'relative' as const,
         overflow: 'hidden',
@@ -86,12 +170,11 @@ export function KanbanCard({ card, columnId, onClick }: KanbanCardProps): React.
 
       {/* Title row */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', marginBottom: '4px' }}>
-        {/* Priority dot */}
         {priority !== 'none' && (
           <span style={{
             width: '6px', height: '6px', borderRadius: '50%',
-            background: priorityDotColors[priority],
-            boxShadow: `0 0 6px ${priorityDotColors[priority]}`,
+            background: pConfig.dot,
+            boxShadow: `0 0 6px ${pConfig.dot}`,
             flexShrink: 0, marginTop: '5px',
           }} />
         )}
@@ -137,10 +220,33 @@ export function KanbanCard({ card, columnId, onClick }: KanbanCardProps): React.
         </div>
       )}
 
+      {/* Subtask indicator */}
+      {subtaskInfo && (
+        <div style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{
+            flex: 1, height: '3px', borderRadius: '2px',
+            background: 'rgba(255, 255, 255, 0.06)',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              width: `${subtaskInfo.total > 0 ? (subtaskInfo.done / subtaskInfo.total) * 100 : 0}%`,
+              height: '100%', borderRadius: '2px',
+              background: subtaskInfo.done === subtaskInfo.total ? '#4ade80' : '#ffb347',
+              transition: 'width 300ms ease',
+            }} />
+          </div>
+          <span style={{
+            fontSize: '0.5625rem', color: '#8a8494', flexShrink: 0, fontWeight: 500,
+          }}>
+            {subtaskInfo.done}/{subtaskInfo.total}
+          </span>
+        </div>
+      )}
+
       {/* Footer: Owner + Client + Due */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        fontSize: '0.5625rem', color: '#8a8494',
+        fontSize: '0.5625rem', color: '#8a8494', gap: '4px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' as const }}>
           {/* Owner badge */}
@@ -164,18 +270,21 @@ export function KanbanCard({ card, columnId, onClick }: KanbanCardProps): React.
               {card.client}
             </span>
           )}
-
-          {/* Due date */}
-          {card.dueDate && (
-            <span style={{
-              fontWeight: isOverdue ? 600 : 400,
-              color: isOverdue ? '#ef4444' : '#8a8494',
-              ...(isOverdue ? { textShadow: '0 0 6px rgba(239, 68, 68, 0.4)' } : {}),
-            }}>
-              📅 {new Date(card.dueDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </span>
-          )}
         </div>
+
+        {/* Due date chip */}
+        {dueDateInfo && (
+          <span style={{
+            padding: '1px 7px', borderRadius: '9999px', fontWeight: dueDateInfo.urgent ? 600 : 500,
+            background: dueDateInfo.bg,
+            border: `1px solid ${dueDateInfo.borderColor}`,
+            color: dueDateInfo.color,
+            fontSize: '0.5625rem',
+            ...(dueDateInfo.urgent ? { animation: 'pulse-subtle 2s infinite' } : {}),
+          }}>
+            {dueDateInfo.label}
+          </span>
+        )}
       </div>
     </div>
   );

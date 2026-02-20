@@ -643,14 +643,14 @@ export function ClientTable({ clients, onUpdate, onAdd }: ClientTableProps): Rea
   }
 
   // Sort: active → pipeline → paused → completed
-  const sortOrder: Record<ClientStatus, number> = { active: 0, pipeline: 1, paused: 2, completed: 3 };
+  const sortOrder: Record<ClientStatus, number> = { active: 0, pipeline: 1, paused: 2, closed: 3 };
   const sorted = [...enrichedClients].sort((a, b) => sortOrder[a.status] - sortOrder[b.status]);
 
   // Calculate totals
   const totalMonthlyAmount = sorted.reduce((s, c) => s + (c.status === 'active' ? (c.monthlyTotal || 0) : 0), 0);
   const totalTrackedValue = sorted.reduce((s, c) => s + (c.status === 'active' ? c.trackedValue : 0), 0);
   const totalRetainer = sorted.reduce((s, c) => s + (c.status === 'active' ? (c.monthlyRetainer || 0) : 0), 0);
-  const totalProject = sorted.reduce((s, c) => s + (c.status !== 'completed' ? (c.projectValue || 0) : 0), 0);
+  const totalProject = sorted.reduce((s, c) => s + (c.status !== 'closed' ? (c.projectValue || 0) : 0), 0);
   const activeCount = sorted.filter((c) => c.status === 'active').length;
 
   const columnHeaders = [
