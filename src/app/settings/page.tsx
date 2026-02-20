@@ -155,7 +155,7 @@ export default function SettingsPage() {
           </SettingsSection>
 
           <SettingsSection title="Keyboard Shortcuts" icon="⌨️">
-            <InfoRow label="Global Search" value="⌘ K (coming soon)" />
+            <InfoRow label="Global Search" value="⌘ K" />
             <InfoRow label="Toggle Compact Mode" value="Battle Board toolbar" />
           </SettingsSection>
         </div>
