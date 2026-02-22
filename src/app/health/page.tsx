@@ -8,6 +8,7 @@ import { YearlyHeatmap } from '@/components/health/YearlyHeatmap';
 import { ActivityTimeline } from '@/components/health/ActivityTimeline';
 import { PaceChart } from '@/components/health/PaceChart';
 import { HealthGoals } from '@/components/health/HealthGoals';
+import { ChallengeCard } from '@/components/health/ChallengeCard';
 import { color, typography, animation, layout } from '@/styles/tokens';
 
 interface HealthData {
@@ -37,6 +38,7 @@ interface HealthData {
     longest: number;
     longestStart: string;
     longestEnd: string;
+    personalRecord?: number;
     current: number;
     lastActivity: string;
     daysSinceLast: number;
@@ -147,6 +149,7 @@ export default function HealthPage(): React.ReactElement {
             fastestPace={data.summary.running.fastest_pace}
           />
           <StreakDisplay {...data.streaks} />
+          <ChallengeCard />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <YearlyHeatmap byYear={data.summary.by_year} />
             <HealthGoals />
