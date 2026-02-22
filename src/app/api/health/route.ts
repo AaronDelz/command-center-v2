@@ -2,9 +2,20 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+// Activity types that count toward streak
+const STREAK_TYPES = new Set(['Running', 'Hiking']);
+
+// Confirmed streak override — fully verified through RunKeeper + ClickUp + memory
+// Jun 12-14 2021: Aaron's memory | Jun 15-18: RunKeeper | Jun 19: ClickUp only (TomTom, never synced) | Jun 20 - Jun 17 2022: RunKeeper
+const CONFIRMED_STREAK = {
+  days: 371,
+  start: '2021-06-12',
+  end: '2022-06-17',
+};
+
 interface Activity {
   date: string;
-  activity: string;
+  type: string;
   distance_miles: number;
   duration_min: number;
   pace_min_mile: number;
@@ -24,45 +35,58 @@ interface MonthlyStat {
   miles: number;
 }
 
-function parseCSV(csvText: string): Activity[] {
+/** Parse MM:SS or H:MM:SS → decimal minutes */
+function parseDuration(s: string): number {
+  if (!s?.trim()) return 0;
+  const parts = s.trim().split(':').map(Number);
+  if (parts.length === 2) return parts[0] + parts[1] / 60;
+  if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60;
+  return 0;
+}
+
+/** Parse native RunKeeper cardioActivities.csv */
+function parseNativeCSV(csvText: string): Activity[] {
   const lines = csvText.trim().split('\n');
   const activities: Activity[] = [];
+  // Header: Activity Id,Date,Type,Route Name,Distance (mi),Duration,Average Pace,Average Speed (mph),Calories Burned,Climb (ft),...
   for (let i = 1; i < lines.length; i++) {
     const parts = lines[i].split(',');
     if (parts.length < 6) continue;
-    activities.push({
-      date: parts[0],
-      activity: parts[1],
-      distance_miles: parseFloat(parts[2]) || 0,
-      duration_min: parseFloat(parts[3]) || 0,
-      pace_min_mile: parseFloat(parts[4]) || 0,
-      elev_gain_ft: parseFloat(parts[5]) || 0,
-    });
+
+    const dateStr = parts[1]?.trim();
+    const type = parts[2]?.trim();
+    if (!dateStr || !type) continue;
+
+    // Date stored as local time — just take the date portion (first 10 chars)
+    const date = dateStr.slice(0, 10);
+    const dist = parseFloat(parts[4]) || 0;
+    const dur = parseDuration(parts[5]);
+
+    // Pace: parse MM:SS, clamp to reasonable range (4–30 min/mile)
+    let pace = parseDuration(parts[6] || '');
+    if (pace < 4 || pace > 30) pace = dist > 0 && dur > 0 ? dur / dist : 0;
+
+    const climb = parseFloat(parts[9]) || 0;
+
+    activities.push({ date, type, distance_miles: dist, duration_min: dur, pace_min_mile: pace, elev_gain_ft: climb });
   }
   return activities;
 }
 
-function parseClickUpRunDates(csvText: string): Set<string> {
-  const dates = new Set<string>();
-  const lines = csvText.trim().split('\n');
-  for (let i = 1; i < lines.length; i++) {
-    // ClickUp exports dates like: "Saturday, June 12th 2021"
-    const match = lines[i].match(/(\w+) (\d+)\w* (\d{4})/);
-    if (match) {
-      try {
-        const d = new Date(`${match[1]} ${match[2]}, ${match[3]}`);
-        if (!isNaN(d.getTime())) {
-          dates.add(d.toISOString().slice(0, 10));
-        }
-      } catch { /* skip malformed rows */ }
-    }
-  }
-  return dates;
-}
+function computeStreaks(activities: Activity[]): {
+  longest: number; longestStart: string; longestEnd: string;
+  current: number; lastActivity: string; daysSinceLast: number;
+} {
+  // Only Running + Hiking count toward streak
+  const dateSet = new Set(
+    activities.filter(a => STREAK_TYPES.has(a.type)).map(a => a.date)
+  );
 
-function computeStreaks(activities: Activity[], extraDates?: Set<string>): { longest: number; longestStart: string; longestEnd: string; current: number; lastActivity: string; daysSinceLast: number } {
-  const dateSet = new Set(activities.map(a => a.date));
-  if (extraDates) extraDates.forEach(d => dateSet.add(d));
+  // Inject Jun 12-14 2021 (memory-confirmed, not in any export)
+  ['2021-06-12', '2021-06-13', '2021-06-14'].forEach(d => dateSet.add(d));
+  // Inject Jun 19 2021 (ClickUp-confirmed, never synced to RunKeeper)
+  dateSet.add('2021-06-19');
+
   const dates = [...dateSet].sort();
   if (dates.length === 0) return { longest: 0, longestStart: '', longestEnd: '', current: 0, lastActivity: '', daysSinceLast: 0 };
 
@@ -70,53 +94,41 @@ function computeStreaks(activities: Activity[], extraDates?: Set<string>): { lon
   let cur = 1, curStart = dates[0];
 
   for (let i = 1; i < dates.length; i++) {
-    const d1 = new Date(dates[i - 1] + 'T00:00:00');
-    const d2 = new Date(dates[i] + 'T00:00:00');
-    const diff = (d2.getTime() - d1.getTime()) / 86400000;
+    const diff = (new Date(dates[i] + 'T00:00:00').getTime() - new Date(dates[i - 1] + 'T00:00:00').getTime()) / 86400000;
     if (diff === 1) {
       cur++;
-      if (cur > best) {
-        best = cur;
-        bestStart = curStart;
-        bestEnd = dates[i];
-      }
+      if (cur > best) { best = cur; bestStart = curStart; bestEnd = dates[i]; }
     } else {
-      cur = 1;
-      curStart = dates[i];
+      cur = 1; curStart = dates[i];
     }
   }
 
-  // Current streak (from last activity backwards)
+  // Use confirmed override if it matches what data shows
+  if (bestStart <= '2021-06-15' && bestEnd >= '2022-06-15') {
+    best = CONFIRMED_STREAK.days;
+    bestStart = CONFIRMED_STREAK.start;
+    bestEnd = CONFIRMED_STREAK.end;
+  }
+
+  // Current streak (trailing consecutive days)
   let currentStreak = 1;
   for (let i = dates.length - 1; i > 0; i--) {
-    const d1 = new Date(dates[i - 1] + 'T00:00:00');
-    const d2 = new Date(dates[i] + 'T00:00:00');
-    if ((d2.getTime() - d1.getTime()) / 86400000 === 1) {
-      currentStreak++;
-    } else break;
+    const diff = (new Date(dates[i] + 'T00:00:00').getTime() - new Date(dates[i - 1] + 'T00:00:00').getTime()) / 86400000;
+    if (diff === 1) currentStreak++;
+    else break;
   }
 
   const lastDate = new Date(dates[dates.length - 1] + 'T00:00:00');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const daysSince = Math.floor((today.getTime() - lastDate.getTime()) / 86400000);
-
-  // If last activity wasn't today or yesterday, current streak is 0
   if (daysSince > 1) currentStreak = 0;
 
-  return {
-    longest: best,
-    longestStart: bestStart,
-    longestEnd: bestEnd,
-    current: currentStreak,
-    lastActivity: dates[dates.length - 1],
-    daysSinceLast: daysSince,
-  };
+  return { longest: best, longestStart: bestStart, longestEnd: bestEnd, current: currentStreak, lastActivity: dates[dates.length - 1], daysSinceLast: daysSince };
 }
 
 function computeMonthlyStats(activities: Activity[]): MonthlyStat[] {
   const map = new Map<string, { runs: number; miles: number }>();
-  for (const a of activities) {
+  for (const a of activities.filter(a => a.type === 'Running')) {
     const month = a.date.slice(0, 7);
     const entry = map.get(month) || { runs: 0, miles: 0 };
     entry.runs++;
@@ -129,27 +141,25 @@ function computeMonthlyStats(activities: Activity[]): MonthlyStat[] {
 }
 
 function computeWeeklyStats(activities: Activity[]): WeeklyStat[] {
-  const map = new Map<string, { runs: number; miles: number; totalPace: number }>();
-  for (const a of activities) {
+  const map = new Map<string, { runs: number; miles: number; totalPace: number; paceCount: number }>();
+  for (const a of activities.filter(a => a.type === 'Running')) {
     const d = new Date(a.date + 'T00:00:00');
-    const dayOfWeek = d.getDay();
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - ((dayOfWeek + 6) % 7));
-    const weekKey = monday.toISOString().slice(0, 10);
-    const entry = map.get(weekKey) || { runs: 0, miles: 0, totalPace: 0 };
+    const mon = new Date(d);
+    mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    const weekKey = mon.toISOString().slice(0, 10);
+    const entry = map.get(weekKey) || { runs: 0, miles: 0, totalPace: 0, paceCount: 0 };
     entry.runs++;
     entry.miles += a.distance_miles;
-    entry.totalPace += a.pace_min_mile;
+    if (a.pace_min_mile > 0) { entry.totalPace += a.pace_min_mile; entry.paceCount++; }
     map.set(weekKey, entry);
   }
   return Array.from(map.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .slice(-12)
     .map(([week, s]) => ({
-      week,
-      runs: s.runs,
+      week, runs: s.runs,
       miles: Math.round(s.miles * 10) / 10,
-      avgPace: Math.round((s.totalPace / s.runs) * 100) / 100,
+      avgPace: s.paceCount > 0 ? Math.round((s.totalPace / s.paceCount) * 100) / 100 : 0,
     }));
 }
 
@@ -158,33 +168,26 @@ export async function GET(): Promise<NextResponse> {
     const dataDir = path.join(process.cwd(), 'data', 'health');
     const summaryRaw = fs.readFileSync(path.join(dataDir, 'runkeeper-summary.json'), 'utf-8');
     const summary = JSON.parse(summaryRaw);
-    const csvRaw = fs.readFileSync(path.join(dataDir, 'runkeeper-activities.csv'), 'utf-8');
-    const activities = parseCSV(csvRaw);
 
-    // Merge ClickUp run dates for accurate streak calculation
-    // (RunKeeper export is missing 3 days from Jun 12-14, 2021 — the streak start)
-    let clickUpDates: Set<string> | undefined;
-    const clickUpPath = path.join(dataDir, 'clickup-runs.csv');
-    if (fs.existsSync(clickUpPath)) {
-      clickUpDates = parseClickUpRunDates(fs.readFileSync(clickUpPath, 'utf-8'));
-    }
+    // Use native RunKeeper export (includes Running + Hiking + Walking etc.)
+    const csvRaw = fs.readFileSync(path.join(dataDir, 'cardioActivities.csv'), 'utf-8');
+    const activities = parseNativeCSV(csvRaw);
 
-    // Sort most recent first for the response
-    const sortedActivities = [...activities].sort((a, b) => b.date.localeCompare(a.date));
-    const streaks = computeStreaks(activities, clickUpDates);
-    // Personal record note: Jun 12-14, 2021 are missing from both exports
-    // but Aaron confirmed the streak started Jun 12. Real streak ≈ 371 days.
-    const personalRecord = streaks.longestStart === '2021-06-12' ? streaks.longest :
-      (streaks.longestStart <= '2021-06-15' && streaks.longestEnd >= '2022-06-15') ? streaks.longest + 3 : streaks.longest;
+    const sortedActivities = [...activities]
+      .filter(a => a.type === 'Running')
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    const streaks = computeStreaks(activities);
     const monthlyStats = computeMonthlyStats(activities);
     const weeklyStats = computeWeeklyStats(activities);
 
     return NextResponse.json({
       summary,
       activities: sortedActivities,
-      streaks: { ...streaks, personalRecord },
+      streaks,
       monthlyStats,
       weeklyStats,
+      confirmedStreak: CONFIRMED_STREAK,
     });
   } catch (error) {
     console.error('Health API error:', error);
