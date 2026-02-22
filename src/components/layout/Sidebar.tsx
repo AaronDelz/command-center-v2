@@ -36,6 +36,12 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: 'PERSONAL',
+    items: [
+      { label: 'The Crucible', href: '/health', icon: '🏋️' },
+    ],
+  },
+  {
     label: 'RESOURCES',
     items: [
       { label: 'Vault', href: '/vault', icon: '📚' },
