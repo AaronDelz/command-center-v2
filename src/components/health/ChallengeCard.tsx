@@ -35,7 +35,7 @@ export function ChallengeCard(): React.ReactElement {
           fontWeight: typography.fontWeight.bold,
           color: color.ember.flame,
           textShadow: '0 0 20px rgba(255,179,71,0.3)',
-          letterSpacing: typography.letterSpacing.tight,
+          letterSpacing: typography.letterSpacing.normal,
         }}>
           The 365-Day Challenge
         </div>
