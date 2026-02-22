@@ -39,8 +39,8 @@ function formatDuration(mins: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-export function ActivityTimeline({ activities, limit = 30 }: ActivityTimelineProps): React.ReactElement {
-  const shown = activities.slice(0, limit);
+export function ActivityTimeline({ activities, limit }: ActivityTimelineProps): React.ReactElement {
+  const shown = limit ? activities.slice(0, limit) : activities;
 
   return (
     <GlassCard padding="md">

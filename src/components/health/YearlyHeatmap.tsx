@@ -20,7 +20,7 @@ export function YearlyHeatmap({ byYear }: YearlyHeatmapProps): React.ReactElemen
 
   const years: YearData[] = Object.entries(byYear)
     .map(([year, data]) => ({ year, ...data }))
-    .sort((a, b) => a.year.localeCompare(b.year));
+    .sort((a, b) => b.year.localeCompare(a.year));
 
   const maxMiles = Math.max(...years.map(y => y.miles));
 

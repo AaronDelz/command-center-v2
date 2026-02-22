@@ -168,7 +168,7 @@ export default function HealthPage(): React.ReactElement {
             totalHours={data.summary.total_hours}
             fastestPace={data.summary.running.fastest_pace}
           />
-          <ActivityTimeline activities={data.activities} limit={50} />
+          <ActivityTimeline activities={data.activities} />
         </div>
       )}
 
