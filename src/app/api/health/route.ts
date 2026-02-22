@@ -173,9 +173,11 @@ export async function GET(): Promise<NextResponse> {
     const csvRaw = fs.readFileSync(path.join(dataDir, 'cardioActivities.csv'), 'utf-8');
     const activities = parseNativeCSV(csvRaw);
 
+    // Map to legacy field names expected by page/components (activity, not type)
     const sortedActivities = [...activities]
       .filter(a => a.type === 'Running')
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map(a => ({ ...a, activity: a.type }));
 
     const streaks = computeStreaks(activities);
     const monthlyStats = computeMonthlyStats(activities);
