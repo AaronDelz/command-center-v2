@@ -60,7 +60,7 @@ export function StreakDisplay({ longest, longestStart, longestEnd, current, last
             marginTop: '4px',
             fontStyle: 'italic',
           }}>
-            53 consecutive days of showing up
+            {longest} consecutive days of showing up
           </div>
         </div>
       </GlassCard>
