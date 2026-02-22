@@ -42,8 +42,28 @@ function parseCSV(csvText: string): Activity[] {
   return activities;
 }
 
-function computeStreaks(activities: Activity[]): { longest: number; longestStart: string; longestEnd: string; current: number; lastActivity: string; daysSinceLast: number } {
-  const dates = [...new Set(activities.map(a => a.date))].sort();
+function parseClickUpRunDates(csvText: string): Set<string> {
+  const dates = new Set<string>();
+  const lines = csvText.trim().split('\n');
+  for (let i = 1; i < lines.length; i++) {
+    // ClickUp exports dates like: "Saturday, June 12th 2021"
+    const match = lines[i].match(/(\w+) (\d+)\w* (\d{4})/);
+    if (match) {
+      try {
+        const d = new Date(`${match[1]} ${match[2]}, ${match[3]}`);
+        if (!isNaN(d.getTime())) {
+          dates.add(d.toISOString().slice(0, 10));
+        }
+      } catch { /* skip malformed rows */ }
+    }
+  }
+  return dates;
+}
+
+function computeStreaks(activities: Activity[], extraDates?: Set<string>): { longest: number; longestStart: string; longestEnd: string; current: number; lastActivity: string; daysSinceLast: number } {
+  const dateSet = new Set(activities.map(a => a.date));
+  if (extraDates) extraDates.forEach(d => dateSet.add(d));
+  const dates = [...dateSet].sort();
   if (dates.length === 0) return { longest: 0, longestStart: '', longestEnd: '', current: 0, lastActivity: '', daysSinceLast: 0 };
 
   let best = 1, bestStart = dates[0], bestEnd = dates[0];
@@ -141,16 +161,28 @@ export async function GET(): Promise<NextResponse> {
     const csvRaw = fs.readFileSync(path.join(dataDir, 'runkeeper-activities.csv'), 'utf-8');
     const activities = parseCSV(csvRaw);
 
+    // Merge ClickUp run dates for accurate streak calculation
+    // (RunKeeper export is missing 3 days from Jun 12-14, 2021 — the streak start)
+    let clickUpDates: Set<string> | undefined;
+    const clickUpPath = path.join(dataDir, 'clickup-runs.csv');
+    if (fs.existsSync(clickUpPath)) {
+      clickUpDates = parseClickUpRunDates(fs.readFileSync(clickUpPath, 'utf-8'));
+    }
+
     // Sort most recent first for the response
     const sortedActivities = [...activities].sort((a, b) => b.date.localeCompare(a.date));
-    const streaks = computeStreaks(activities);
+    const streaks = computeStreaks(activities, clickUpDates);
+    // Personal record note: Jun 12-14, 2021 are missing from both exports
+    // but Aaron confirmed the streak started Jun 12. Real streak ≈ 371 days.
+    const personalRecord = streaks.longestStart === '2021-06-12' ? streaks.longest :
+      (streaks.longestStart <= '2021-06-15' && streaks.longestEnd >= '2022-06-15') ? streaks.longest + 3 : streaks.longest;
     const monthlyStats = computeMonthlyStats(activities);
     const weeklyStats = computeWeeklyStats(activities);
 
     return NextResponse.json({
       summary,
       activities: sortedActivities,
-      streaks,
+      streaks: { ...streaks, personalRecord },
       monthlyStats,
       weeklyStats,
     });
