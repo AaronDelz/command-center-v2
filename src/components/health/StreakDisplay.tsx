@@ -8,14 +8,21 @@ interface StreakDisplayProps {
   longest: number;
   longestStart: string;
   longestEnd: string;
+  personalRecord?: number;
   current: number;
   lastActivity: string;
   daysSinceLast: number;
 }
 
-export function StreakDisplay({ longest, longestStart, longestEnd, current, lastActivity, daysSinceLast }: StreakDisplayProps): React.ReactElement {
+export function StreakDisplay({ longest, longestStart, longestEnd, personalRecord, current, lastActivity, daysSinceLast }: StreakDisplayProps): React.ReactElement {
   const isDormant = daysSinceLast > 30;
   const isWarning = daysSinceLast > 7 && daysSinceLast <= 30;
+  // Use personalRecord if available (accounts for manual entries missing from CSV export)
+  const displayDays = personalRecord ?? longest;
+  // The streak started Jun 12, 2021 (confirmed by RunKeeper app + Facebook post)
+  // Manual entries on Jun 12-14 didn't export to CSV — real start was Jun 12
+  const displayStart = longestStart <= '2021-06-15' ? '2021-06-12' : longestStart;
+  const displayEnd = longestEnd >= '2022-06-11' ? '2022-06-17' : longestEnd;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -35,7 +42,7 @@ export function StreakDisplay({ longest, longestStart, longestEnd, current, last
             lineHeight: 1,
             textShadow: '0 0 30px rgba(255,179,71,0.4)',
           }}>
-            {longest}
+            {displayDays}
           </div>
           <div style={{
             fontSize: typography.fontSize.sectionHeader,
@@ -45,22 +52,23 @@ export function StreakDisplay({ longest, longestStart, longestEnd, current, last
             marginTop: '8px',
             fontWeight: typography.fontWeight.semibold,
           }}>
-            Longest Streak (Days)
+            Consecutive Days 🔥
           </div>
           <div style={{
             fontSize: typography.fontSize.caption,
             color: color.text.secondary,
             marginTop: '6px',
           }}>
-            {longestStart} → {longestEnd}
+            {displayStart} → {displayEnd}
           </div>
           <div style={{
             fontSize: typography.fontSize.metadata,
-            color: color.text.dim,
+            color: color.ember.flame,
             marginTop: '4px',
             fontStyle: 'italic',
+            fontWeight: typography.fontWeight.medium,
           }}>
-            {longest} consecutive days of showing up
+            365-day challenge completed Jun 11, 2022 ✅
           </div>
         </div>
       </GlassCard>
