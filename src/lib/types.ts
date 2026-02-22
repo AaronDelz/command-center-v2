@@ -114,6 +114,12 @@ export interface ContentData {
 
 // Kanban Types
 
+export interface KanbanSubtask {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 export interface KanbanCard {
   id: string;
   title: string;
@@ -127,6 +133,7 @@ export interface KanbanCard {
   acknowledged?: boolean;
   client?: string;
   dueDate?: string;
+  subtasks?: KanbanSubtask[];
 }
 
 export interface KanbanColumn {

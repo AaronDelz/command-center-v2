@@ -1,6 +1,25 @@
 {
   "drops": [
     {
+      "id": "drop-1771602128684",
+      "shortId": "B4X",
+      "type": "file",
+      "content": "File upload",
+      "status": "new",
+      "createdAt": "2026-02-20T15:42:08.684Z",
+      "files": [
+        "~/Documents/inbox/My_Mission_Statement_.txt"
+      ]
+    },
+    {
+      "id": "drop-1771593278688",
+      "shortId": "R3R",
+      "type": "unsorted",
+      "content": "Are our API keys protected? What are your thoughts on this? Should we build something like this?\nhttps://x.com/istdrc/status/2024478996344328244?s=46&t=iXqrEWxDFi2hrKbumAFA9A",
+      "status": "new",
+      "createdAt": "2026-02-20T13:14:38.688Z"
+    },
+    {
       "id": "drop-1771558588901",
       "shortId": "M3F",
       "type": "file",
@@ -7338,5 +7357,5 @@
       "updatedAt": "2026-01-23T16:43:42.000Z"
     }
   ],
-  "lastUpdated": "2026-02-20T03:36:28.902Z"
+  "lastUpdated": "2026-02-21T22:57:21.104Z"
 }

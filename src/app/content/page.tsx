@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { getDynamicSubtitle } from '@/lib/subtitles';
 import { StreakCounter } from '@/components/content/StreakCounter';
 import { WeekCalendar } from '@/components/content/WeekCalendar';
 import { DraftQueue } from '@/components/content/DraftQueue';
@@ -87,7 +88,7 @@ export default function ContentPage(): React.ReactElement {
   if (loading || !data) {
     return (
       <div>
-        <PageHeader title="Content Hub" subtitle="Plan, create, publish, analyze — the content engine" />
+        <PageHeader title="Content Hub" subtitle={getDynamicSubtitle('content')} />
         <div style={{ textAlign: 'center', padding: '60px 0', opacity: 0.5 }}>
           <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🔥</div>
           <p>Loading the forge...</p>
@@ -98,7 +99,7 @@ export default function ContentPage(): React.ReactElement {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <PageHeader title="Content Hub" subtitle="Plan, create, publish, analyze — the content engine" />
+      <PageHeader title="Content Hub" subtitle={getDynamicSubtitle('content')} />
 
       {/* Row 1: Streak + Stats */}
       <StreakCounter

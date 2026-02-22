@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { getDynamicSubtitle } from '@/lib/subtitles';
 import { GlassCard } from '@/components/ui';
 import { color, typography, radius } from '@/styles/tokens';
 
@@ -127,7 +128,7 @@ export default function SettingsPage() {
     <div>
       <PageHeader
         title="Settings"
-        subtitle="System configuration & diagnostics"
+        subtitle={getDynamicSubtitle('settings')}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '20px' }}>

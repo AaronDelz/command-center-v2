@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { getDynamicSubtitle } from '@/lib/subtitles';
 import { ClientTable } from '@/components/clients/ClientTable';
 import { BillingTable } from '@/components/clients/BillingTable';
 import { GlassCard, GlassModal, GlassInput, GlassSelect, GlassPill, EmberButton } from '@/components/ui';
@@ -76,7 +77,7 @@ function ClientFormModal({
     <GlassModal open={true} onClose={onClose} title={title} width="lg" footer={
       <div className="flex gap-2">
         <EmberButton variant="ghost" size="sm" onClick={onClose}>Cancel</EmberButton>
-        <EmberButton variant="primary" size="sm" onClick={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}>
+        <EmberButton variant="primary" size="sm" onClick={() => { if (form.name.trim()) onSave(form); }}>
           {initial ? 'Save Changes' : 'Create Client'}
         </EmberButton>
       </div>
@@ -162,6 +163,14 @@ const INVOICE_COLORS: Record<InvoiceStatus, { color: string; bg: string; label: 
   paid: { color: '#4ade80', bg: 'rgba(74, 222, 128, 0.12)', label: 'Paid' },
 };
 
+function getHealthDot(lastActivity: string | undefined): { color: string; label: string } {
+  if (!lastActivity) return { color: '#6b7280', label: 'No activity' };
+  const days = Math.floor((Date.now() - new Date(lastActivity).getTime()) / (1000 * 60 * 60 * 24));
+  if (days <= 7) return { color: '#4ade80', label: `Active ${days}d ago` };
+  if (days <= 30) return { color: '#fbbf24', label: `${days}d since last activity` };
+  return { color: '#ef4444', label: `${days}d since last activity` };
+}
+
 function ClientCRMCard({
   client,
   onClick,
@@ -178,6 +187,7 @@ function ClientCRMCard({
   const statusConfig = STATUS_COLORS[client.status] || STATUS_COLORS.active;
   const invoiceStatus = (client.invoiceStatus || 'unpaid') as InvoiceStatus;
   const invoiceConfig = INVOICE_COLORS[invoiceStatus];
+  const health = getHealthDot(client.lastActivity);
 
   const rateDisplay = (() => {
     if (paymentType === 'hourly') return `$${client.hourlyRate}/hr`;
@@ -229,14 +239,26 @@ function ClientCRMCard({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontSize: typography.fontSize.cardTitle,
-            fontWeight: typography.fontWeight.semibold,
-            color: color.text.primary,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
           }}>
-            {client.name}
+            <div title={health.label} style={{
+              width: '7px', height: '7px', borderRadius: '50%',
+              background: health.color,
+              boxShadow: `0 0 6px ${health.color}60`,
+              flexShrink: 0,
+            }} />
+            <div style={{
+              fontSize: typography.fontSize.cardTitle,
+              fontWeight: typography.fontWeight.semibold,
+              color: color.text.primary,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {client.name}
+            </div>
           </div>
           {client.businessName && client.businessName !== client.name && (
             <div style={{
@@ -358,6 +380,7 @@ export default function ClientsPage(): React.ReactElement {
   const [showDrawer, setShowDrawer] = useState(false);
   const [activeTab, setActiveTab] = useState<ClientTab>('command');
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Handle ?highlight=ClientName — auto-open that client's drawer
   useEffect(() => {
@@ -412,8 +435,8 @@ export default function ClientsPage(): React.ReactElement {
       business: formData.business.trim(),
       status: formData.status,
       rate: '',
-      revenueModel: formData.paymentType === 'one-off' ? 'project' : formData.paymentType === 'retainer' ? 'retainer' : 'hourly',
-      paymentType: formData.paymentType,
+      revenueModel: formData.paymentType === 'one-off' ? 'project' : formData.paymentType === 'retainer' ? 'retainer' : 'hourly', // deprecated — kept for backwards compat
+      paymentType: formData.paymentType, // canonical field
       hourlyRate: formData.hourlyRate,
       retainerAmount: formData.retainerAmount,
       projectAmount: formData.projectAmount,
@@ -460,7 +483,7 @@ export default function ClientsPage(): React.ReactElement {
   if (isLoading) {
     return (
       <div>
-        <PageHeader title="Client Command" subtitle="Your client roster — relationships, revenue, results" />
+        <PageHeader title="Client Command" subtitle={getDynamicSubtitle('clients')} />
         <div style={{ padding: '60px', textAlign: 'center', color: color.text.dim }}>Loading clients...</div>
       </div>
     );
@@ -593,7 +616,7 @@ export default function ClientsPage(): React.ReactElement {
           {showDrawer && selectedClient && (
             <ClientDetailDrawer
               client={selectedClient}
-              onClose={() => { setShowDrawer(false); setSelectedClient(null); }}
+              onClose={() => { setShowDrawer(false); setSelectedClient(null); if (searchParams.get('highlight')) router.replace('/clients'); }}
               onUpdate={handleUpdate}
             />
           )}

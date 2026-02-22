@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { KanbanCard as KanbanCardType } from '@/lib/types';
+import type { KanbanCard as KanbanCardType, KanbanSubtask } from '@/lib/types';
 
 interface KanbanCardProps {
   card: KanbanCardType;
@@ -56,6 +56,29 @@ export function KanbanCard({ card, columnId, compact = false, onClick }: KanbanC
   const ownerStyle = ownerColors[card.owner.toLowerCase()] ?? ownerColors.aaron;
   const dueDateInfo = card.dueDate ? getDueDateInfo(card.dueDate) : null;
   const subtaskInfo = card.notes ? getSubtaskInfo(card.notes) : null;
+
+  // Structured subtasks state
+  const hasSubtasks = !!(card.subtasks && card.subtasks.length > 0);
+  const [localSubtasks, setLocalSubtasks] = useState<KanbanSubtask[]>(card.subtasks ?? []);
+  const localCompleted = localSubtasks.filter(s => s.completed).length;
+  const localTotal = localSubtasks.length;
+  const [subtasksExpanded, setSubtasksExpanded] = useState(localTotal <= 3);
+
+  const handleSubtaskToggle = async (e: React.MouseEvent, subtaskId: string, completed: boolean) => {
+    e.stopPropagation();
+    // Optimistic update
+    setLocalSubtasks(prev => prev.map(s => s.id === subtaskId ? { ...s, completed } : s));
+    try {
+      await fetch('/api/kanban/subtask', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardId: card.id, subtaskId, completed }),
+      });
+    } catch {
+      // Revert on error
+      setLocalSubtasks(prev => prev.map(s => s.id === subtaskId ? { ...s, completed: !completed } : s));
+    }
+  };
 
   const handleDragStart = (e: React.DragEvent) => {
     setIsDragging(true);
@@ -220,13 +243,73 @@ export function KanbanCard({ card, columnId, compact = false, onClick }: KanbanC
         </div>
       )}
 
-      {/* Subtask indicator */}
-      {subtaskInfo && (
+      {/* Interactive subtasks (structured) */}
+      {hasSubtasks && (
+        <div style={{ marginBottom: '6px' }}>
+          {/* Toggle row + progress bar */}
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', marginBottom: subtasksExpanded ? '6px' : 0 }}
+            onClick={e => { e.stopPropagation(); setSubtasksExpanded(v => !v); }}
+          >
+            <span style={{ fontSize: '9px', color: '#555060', lineHeight: 1, userSelect: 'none' as const }}>
+              {subtasksExpanded ? '▾' : '▸'}
+            </span>
+            <div style={{ flex: 1, height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', borderRadius: '2px',
+                width: `${localTotal > 0 ? (localCompleted / localTotal) * 100 : 0}%`,
+                background: localCompleted === localTotal && localTotal > 0 ? '#4ade80' : 'linear-gradient(90deg, #ff6b35, #ffb347)',
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+            <span style={{ fontSize: '0.5625rem', color: '#8a8494', flexShrink: 0, fontWeight: 500 }}>
+              {localCompleted}/{localTotal}
+            </span>
+          </div>
+          {/* Checklist items */}
+          {subtasksExpanded && (
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: '4px' }}>
+              {localSubtasks.map(sub => (
+                <div
+                  key={sub.id}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', cursor: 'pointer' }}
+                  onClick={e => handleSubtaskToggle(e, sub.id, !sub.completed)}
+                >
+                  {/* Checkbox */}
+                  <div style={{
+                    width: '13px', height: '13px', borderRadius: '3px', flexShrink: 0, marginTop: '1px',
+                    border: sub.completed ? 'none' : '1.5px solid rgba(255,255,255,0.18)',
+                    background: sub.completed ? 'linear-gradient(135deg, #ff6b35, #ffb347)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s ease',
+                    boxShadow: sub.completed ? '0 0 6px rgba(255,107,53,0.4)' : 'none',
+                  }}>
+                    {sub.completed && (
+                      <span style={{ color: '#fff', fontSize: '8px', lineHeight: 1, fontWeight: 700 }}>✓</span>
+                    )}
+                  </div>
+                  {/* Text */}
+                  <span style={{
+                    fontSize: '0.6875rem', lineHeight: 1.4,
+                    color: sub.completed ? '#44404e' : '#a09aad',
+                    textDecoration: sub.completed ? 'line-through' : 'none',
+                    transition: 'all 0.15s ease',
+                  }}>
+                    {sub.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Notes-parsed progress bar (fallback for cards without structured subtasks) */}
+      {!hasSubtasks && subtaskInfo && (
         <div style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{
             flex: 1, height: '3px', borderRadius: '2px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            overflow: 'hidden',
+            background: 'rgba(255, 255, 255, 0.06)', overflow: 'hidden',
           }}>
             <div style={{
               width: `${subtaskInfo.total > 0 ? (subtaskInfo.done / subtaskInfo.total) * 100 : 0}%`,
@@ -235,9 +318,7 @@ export function KanbanCard({ card, columnId, compact = false, onClick }: KanbanC
               transition: 'width 300ms ease',
             }} />
           </div>
-          <span style={{
-            fontSize: '0.5625rem', color: '#8a8494', flexShrink: 0, fontWeight: 500,
-          }}>
+          <span style={{ fontSize: '0.5625rem', color: '#8a8494', flexShrink: 0, fontWeight: 500 }}>
             {subtaskInfo.done}/{subtaskInfo.total}
           </span>
         </div>

@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { color, typography, radius } from '@/styles/tokens';
+import { color, typography, radius, animation } from '@/styles/tokens';
 import type { TimeEntry, ClientTimeStats, TimeTrackingSummary } from '@/lib/types';
 
 interface TimeSummaryProps {
@@ -92,7 +92,25 @@ export function TimeSummary({ entries }: TimeSummaryProps): React.ReactElement {
     const clientStats = Array.from(clientStatsMap.values())
       .sort((a, b) => b.totalValue - a.totalValue);
 
-    return { overall, thisWeek, todayStats, clientStats };
+    // Weekly hours (last 7 days, per day)
+    const weeklyHours: { day: string; total: number; billable: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' });
+      const dayEntries = completedEntries.filter(e => {
+        const ed = new Date(e.startTime);
+        return ed.toDateString() === d.toDateString();
+      });
+      weeklyHours.push({
+        day: dayStr,
+        total: dayEntries.reduce((s, e) => s + (e.duration || 0), 0) / 60,
+        billable: dayEntries.filter(e => e.billable).reduce((s, e) => s + (e.duration || 0), 0) / 60,
+      });
+    }
+
+    return { overall, thisWeek, todayStats, clientStats, weeklyHours };
   }, [entries]);
 
   const formatTime = (minutes: number): string => {
@@ -228,6 +246,82 @@ export function TimeSummary({ entries }: TimeSummaryProps): React.ReactElement {
           </div>
         </GlassCard>
       </div>
+
+      {/* Weekly Hours Bar Chart */}
+      <GlassCard>
+        <div style={{ marginBottom: '16px' }}>
+          <h3 style={{
+            margin: '0 0 4px 0',
+            color: color.text.primary,
+            fontSize: typography.fontSize.pageTitle,
+            fontWeight: typography.fontWeight.semibold,
+          }}>
+            This Week
+          </h3>
+          <div style={{ fontSize: typography.fontSize.caption, color: color.text.dim }}>
+            Hours per day (last 7 days)
+          </div>
+        </div>
+        {(() => {
+          const maxHours = Math.max(...stats.weeklyHours.map(d => d.total), 1);
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {stats.weeklyHours.map((day) => (
+                <div key={day.day} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '36px', fontSize: typography.fontSize.caption,
+                    color: color.text.secondary, fontWeight: typography.fontWeight.medium,
+                    textAlign: 'right', flexShrink: 0,
+                  }}>
+                    {day.day}
+                  </div>
+                  <div style={{ flex: 1, position: 'relative', height: '20px', background: 'rgba(255,255,255,0.03)', borderRadius: radius.sm }}>
+                    {/* Total bar */}
+                    {day.total > 0 && (
+                      <div style={{
+                        position: 'absolute', top: 0, left: 0, bottom: 0,
+                        width: `${(day.total / maxHours) * 100}%`,
+                        background: color.ember.DEFAULT,
+                        borderRadius: radius.sm,
+                        opacity: 0.3,
+                        transition: `width ${animation.duration.normal}`,
+                      }} />
+                    )}
+                    {/* Billable bar (overlaid) */}
+                    {day.billable > 0 && (
+                      <div style={{
+                        position: 'absolute', top: 0, left: 0, bottom: 0,
+                        width: `${(day.billable / maxHours) * 100}%`,
+                        background: `linear-gradient(90deg, ${color.ember.DEFAULT}, ${color.ember.flame})`,
+                        borderRadius: radius.sm,
+                        transition: `width ${animation.duration.normal}`,
+                      }} />
+                    )}
+                  </div>
+                  <div style={{
+                    width: '42px', fontSize: typography.fontSize.caption,
+                    color: day.total > 0 ? color.text.primary : color.text.dim,
+                    fontWeight: typography.fontWeight.medium, textAlign: 'right',
+                    fontVariantNumeric: 'tabular-nums', flexShrink: 0,
+                  }}>
+                    {day.total > 0 ? `${day.total.toFixed(1)}h` : '—'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+        <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: typography.fontSize.metadata, color: color.text.dim }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: `linear-gradient(90deg, ${color.ember.DEFAULT}, ${color.ember.flame})` }} />
+            Billable
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: color.ember.DEFAULT, opacity: 0.3 }} />
+            Non-billable
+          </div>
+        </div>
+      </GlassCard>
 
       {/* Client Breakdown */}
       <GlassCard>

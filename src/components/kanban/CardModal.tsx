@@ -51,6 +51,29 @@ export function CardModal({
   const [dueDate, setDueDate] = useState(card?.dueDate ?? '');
   const [columnId, setColumnId] = useState(currentColumnId);
 
+  // Subtasks state
+  const [subtasks, setSubtasks] = useState(card?.subtasks ?? []);
+  const [newSubtaskText, setNewSubtaskText] = useState('');
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskText, setEditingSubtaskText] = useState('');
+
+  // Toggle a subtask in view mode (optimistic + persist via API)
+  const handleViewSubtaskToggle = async (subtaskId: string, completed: boolean) => {
+    setSubtasks(prev => prev.map(s => s.id === subtaskId ? { ...s, completed } : s));
+    if (card?.id) {
+      try {
+        await fetch('/api/kanban/subtask', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cardId: card.id, subtaskId, completed }),
+        });
+      } catch {
+        // Revert on error
+        setSubtasks(prev => prev.map(s => s.id === subtaskId ? { ...s, completed: !completed } : s));
+      }
+    }
+  };
+
   // Client dropdown
   const [clientNames, setClientNames] = useState<string[]>([]);
   const [clientDropdownOpen, setClientDropdownOpen] = useState(false);
@@ -106,6 +129,7 @@ export function CardModal({
       acknowledged: card?.acknowledged,
       ...(client.trim() ? { client: client.trim() } : {}),
       ...(dueDate ? { dueDate } : {}),
+      ...(subtasks.length > 0 ? { subtasks } : {}),
     };
 
     onSave(updatedCard, columnId);
@@ -132,6 +156,8 @@ export function CardModal({
       setClient(card?.client ?? '');
       setDueDate(card?.dueDate ?? '');
       setColumnId(currentColumnId);
+      setSubtasks(card?.subtasks ?? []);
+      setNewSubtaskText('');
       setIsEditing(false);
     }
   };
@@ -427,6 +453,104 @@ export function CardModal({
               }}
             />
           </div>
+
+          {/* Subtasks Manager */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <label style={{ fontSize: '0.7rem', fontWeight: 500, color: color.text.secondary, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+              Tasks ({subtasks.filter(s => s.completed).length}/{subtasks.length})
+            </label>
+
+            {/* Existing subtasks */}
+            {subtasks.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {subtasks.map((sub) => (
+                  <div key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                    {/* Checkbox */}
+                    <div
+                      onClick={() => setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, completed: !s.completed } : s))}
+                      style={{
+                        width: '14px', height: '14px', borderRadius: '3px', flexShrink: 0, cursor: 'pointer',
+                        border: sub.completed ? 'none' : '1.5px solid rgba(255,255,255,0.2)',
+                        background: sub.completed ? 'linear-gradient(135deg, #ff6b35, #ffb347)' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: sub.completed ? '0 0 6px rgba(255,107,53,0.4)' : 'none',
+                      }}
+                    >
+                      {sub.completed && <span style={{ color: '#fff', fontSize: '9px', fontWeight: 700 }}>✓</span>}
+                    </div>
+
+                    {/* Text or inline edit */}
+                    {editingSubtaskId === sub.id ? (
+                      <input
+                        autoFocus
+                        value={editingSubtaskText}
+                        onChange={e => setEditingSubtaskText(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && editingSubtaskText.trim()) {
+                            setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, text: editingSubtaskText.trim() } : s));
+                            setEditingSubtaskId(null);
+                          }
+                          if (e.key === 'Escape') setEditingSubtaskId(null);
+                        }}
+                        onBlur={() => {
+                          if (editingSubtaskText.trim()) setSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, text: editingSubtaskText.trim() } : s));
+                          setEditingSubtaskId(null);
+                        }}
+                        style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: `1px solid ${color.ember.DEFAULT}`, borderRadius: '4px', color: color.text.primary, fontSize: '0.8125rem', padding: '2px 8px', outline: 'none' }}
+                      />
+                    ) : (
+                      <span
+                        onDoubleClick={() => { setEditingSubtaskId(sub.id); setEditingSubtaskText(sub.text); }}
+                        style={{ flex: 1, fontSize: '0.8125rem', color: sub.completed ? '#555060' : '#b8b4c0', textDecoration: sub.completed ? 'line-through' : 'none', cursor: 'text', lineHeight: 1.4 }}
+                        title="Double-click to edit"
+                      >
+                        {sub.text}
+                      </span>
+                    )}
+
+                    {/* Delete */}
+                    <button
+                      onClick={() => setSubtasks(prev => prev.filter(s => s.id !== sub.id))}
+                      style={{ background: 'none', border: 'none', color: '#44404e', cursor: 'pointer', fontSize: '14px', padding: '0 2px', lineHeight: 1, flexShrink: 0 }}
+                      title="Remove task"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add new subtask */}
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                value={newSubtaskText}
+                onChange={e => setNewSubtaskText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && newSubtaskText.trim()) {
+                    setSubtasks(prev => [...prev, { id: `sub-${Date.now()}`, text: newSubtaskText.trim(), completed: false }]);
+                    setNewSubtaskText('');
+                  }
+                }}
+                placeholder="Add a task... (press Enter)"
+                style={{
+                  flex: 1, padding: '8px 12px', background: color.bg.surface,
+                  border: `1px solid ${color.glass.border}`, borderRadius: radius.md,
+                  color: color.text.primary, fontSize: '0.8125rem', outline: 'none',
+                }}
+              />
+              <button
+                onClick={() => {
+                  if (!newSubtaskText.trim()) return;
+                  setSubtasks(prev => [...prev, { id: `sub-${Date.now()}`, text: newSubtaskText.trim(), completed: false }]);
+                  setNewSubtaskText('');
+                }}
+                style={{ padding: '8px 14px', background: color.ember.DEFAULT, border: 'none', borderRadius: radius.md, color: '#fff', fontSize: '0.8125rem', cursor: 'pointer', fontWeight: 500, flexShrink: 0 }}
+              >
+                Add
+              </button>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -506,6 +630,52 @@ export function CardModal({
               }}>
                 {card.notes}
               </p>
+            </div>
+          )}
+
+          {/* Subtasks in view mode */}
+          {subtasks.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.875rem', color: color.text.secondary }}>Tasks:</span>
+                <span style={{ fontSize: '0.75rem', color: '#8a8494' }}>{subtasks.filter(s => s.completed).length}/{subtasks.length} done</span>
+                <div style={{ flex: 1, height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: '2px',
+                    width: `${subtasks.length > 0 ? (subtasks.filter(s => s.completed).length / subtasks.length) * 100 : 0}%`,
+                    background: subtasks.every(s => s.completed) ? '#4ade80' : 'linear-gradient(90deg, #ff6b35, #ffb347)',
+                    transition: 'width 0.3s ease',
+                  }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {subtasks.map(sub => (
+                  <div
+                    key={sub.id}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}
+                    onClick={() => handleViewSubtaskToggle(sub.id, !sub.completed)}
+                  >
+                    <div style={{
+                      width: '15px', height: '15px', borderRadius: '3px', flexShrink: 0, marginTop: '1px',
+                      border: sub.completed ? 'none' : '1.5px solid rgba(255,255,255,0.2)',
+                      background: sub.completed ? 'linear-gradient(135deg, #ff6b35, #ffb347)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: sub.completed ? '0 0 6px rgba(255,107,53,0.4)' : 'none',
+                      transition: 'all 0.15s ease',
+                    }}>
+                      {sub.completed && <span style={{ color: '#fff', fontSize: '9px', fontWeight: 700 }}>✓</span>}
+                    </div>
+                    <span style={{
+                      fontSize: '0.875rem', lineHeight: 1.4,
+                      color: sub.completed ? '#555060' : color.text.primary,
+                      textDecoration: sub.completed ? 'line-through' : 'none',
+                      transition: 'all 0.15s ease',
+                    }}>
+                      {sub.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

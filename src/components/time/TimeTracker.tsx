@@ -710,6 +710,70 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
         />
       )}
 
+      {/* Quick Restart Recent Timers */}
+      {!isTimerRunning && recentEntries.length > 0 && (() => {
+        // Deduplicate by clientName + description, take top 3
+        const seen = new Set<string>();
+        const recentCombos: typeof recentEntries = [];
+        for (const entry of recentEntries) {
+          const key = `${entry.clientId}::${entry.description}`;
+          if (!seen.has(key) && entry.description) {
+            seen.add(key);
+            recentCombos.push(entry);
+            if (recentCombos.length >= 3) break;
+          }
+        }
+        if (recentCombos.length === 0) return null;
+        return (
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: typography.fontSize.caption, color: color.text.dim, alignSelf: 'center' }}>
+              Quick restart:
+            </span>
+            {recentCombos.map((entry) => (
+              <button
+                key={entry.id}
+                onClick={() => handleStartTimer({
+                  clientId: entry.clientId,
+                  clientName: entry.clientName,
+                  description: entry.description,
+                  tags: entry.tags,
+                  billable: entry.billable,
+                  rate: entry.rate,
+                  isRunning: true,
+                })}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 14px',
+                  background: color.bg.surface,
+                  border: `1px solid ${color.glass.border}`,
+                  borderRadius: radius.full,
+                  color: color.text.primary,
+                  fontSize: typography.fontSize.caption,
+                  cursor: 'pointer',
+                  transition: `all ${animation.duration.normal}`,
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = color.ember.DEFAULT;
+                  e.currentTarget.style.background = `${color.ember.DEFAULT}15`;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = color.glass.border;
+                  e.currentTarget.style.background = color.bg.surface;
+                }}
+              >
+                <span style={{ color: color.ember.flame }}>▶</span>
+                <span style={{ fontWeight: typography.fontWeight.semibold }}>{entry.clientName}</span>
+                <span style={{ color: color.text.dim }}>—</span>
+                <span style={{ color: color.text.secondary, maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{entry.description}</span>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
       {/* Client Quick Start Grid */}
       <GlassCard>
         <div style={{ marginBottom: '12px' }}>

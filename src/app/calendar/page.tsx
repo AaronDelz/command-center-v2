@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { getDynamicSubtitle } from '@/lib/subtitles';
 import { GlassCard, EmberButton, SectionHeading } from '@/components/ui';
 import { MonthlyCalendar } from '@/components/calendar/MonthlyCalendar';
 import { EventList } from '@/components/calendar/EventList';
@@ -86,7 +87,7 @@ export default function CalendarPage(): React.ReactElement {
     <div>
       <PageHeader
         title="Calendar"
-        subtitle="Your schedule and upcoming events"
+        subtitle={getDynamicSubtitle('calendar')}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

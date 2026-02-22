@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { getDynamicSubtitle } from '@/lib/subtitles';
 import { TimeTracker } from '@/components/time/TimeTracker';
 import { TimeSummary } from '@/components/time/TimeSummary';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -11,7 +12,7 @@ import { MonthlyBilling } from '@/components/time/MonthlyBilling';
 import { color, typography } from '@/styles/tokens';
 import type { Client, ClientsData, TimeEntriesData } from '@/lib/types';
 
-type ViewMode = 'tracker' | 'analytics' | 'export';
+type ViewMode = 'tracker' | 'analytics';
 
 export default function TimePage(): React.ReactElement {
   const [clients, setClients] = useState<Client[]>([]);
@@ -46,6 +47,29 @@ export default function TimePage(): React.ReactElement {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Auto-refresh every 30s when a timer is running
+  useEffect(() => {
+    const activeTimer = timeData?.entries.find(e => e.isRunning);
+    if (!activeTimer) return;
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, [timeData?.entries, fetchData]);
+
+  // Export to JSON
+  const handleExportJSON = () => {
+    if (!timeData) return;
+    const json = JSON.stringify(timeData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `time-entries-${new Date().toISOString().split('T')[0]}.json`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Export to CSV
   const handleExportCSV = () => {
@@ -122,7 +146,7 @@ export default function TimePage(): React.ReactElement {
       <div>
         <PageHeader 
           title="Time Forge" 
-          subtitle="Track time, measure value, optimize results" 
+          subtitle={getDynamicSubtitle('time')} 
         />
         <div style={{ 
           padding: '60px', 
@@ -167,7 +191,14 @@ export default function TimePage(): React.ReactElement {
               size="sm"
               onClick={handleExportCSV}
             >
-              📊 Export CSV
+              📊 CSV
+            </EmberButton>
+            <EmberButton
+              variant="secondary"
+              size="sm"
+              onClick={handleExportJSON}
+            >
+              📄 JSON
             </EmberButton>
           </div>
         }
@@ -190,52 +221,7 @@ export default function TimePage(): React.ReactElement {
         <TimeSummary entries={timeData.entries} />
       )}
       
-      {viewMode === 'export' && (
-        <GlassCard>
-          <h3 style={{
-            margin: '0 0 16px 0',
-            color: color.text.primary,
-            fontSize: typography.fontSize.pageTitle,
-            fontWeight: typography.fontWeight.semibold,
-          }}>
-            Export Options
-          </h3>
-          
-          <p style={{ 
-            color: color.text.secondary, 
-            marginBottom: '20px',
-            lineHeight: 1.5,
-          }}>
-            Export your time tracking data for external analysis, invoicing, or backup.
-          </p>
-          
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <EmberButton onClick={handleExportCSV}>
-              📊 Download CSV
-            </EmberButton>
-            
-            <EmberButton 
-              variant="secondary"
-              onClick={() => {
-                if (timeData) {
-                  const json = JSON.stringify(timeData, null, 2);
-                  const blob = new Blob([json], { type: 'application/json' });
-                  const link = document.createElement('a');
-                  const url = URL.createObjectURL(blob);
-                  link.setAttribute('href', url);
-                  link.setAttribute('download', `time-entries-${new Date().toISOString().split('T')[0]}.json`);
-                  link.style.visibility = 'hidden';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }
-              }}
-            >
-              📄 Download JSON
-            </EmberButton>
-          </div>
-        </GlassCard>
-      )}
+      {/* Export tab removed — CSV and JSON buttons in header */}
     </div>
   );
 }
