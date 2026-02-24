@@ -156,11 +156,9 @@ export function Sidebar(): React.ReactElement {
           </div>
         </div>
 
-        {/* Status Orb — Constellation */}
-        <div style={{ padding: '8px 20px 4px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderBottom: `1px solid rgba(255,255,255,0.05)`, overflow: 'visible' }}>
-          <div style={{ transform: 'scale(0.55)', transformOrigin: 'center center', margin: '-20px 0' }}>
-            <StatusOrb state={orbStatus} />
-          </div>
+        {/* Status Orb — Forge Flame */}
+        <div style={{ display: 'flex', justifyContent: 'center', borderBottom: `1px solid rgba(255,255,255,0.05)`, padding: '4px 0 0' }}>
+          <StatusOrb state={orbStatus} />
         </div>
 
         {/* Navigation */}

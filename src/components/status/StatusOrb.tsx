@@ -6,372 +6,319 @@ interface StatusOrbProps {
   state?: 'idle' | 'active' | 'alert' | 'thinking';
 }
 
-// Orion constellation star positions (normalized -1 to 1)
-// The Hunter: Betelgeuse, Bellatrix, Belt (Alnitak, Alnilam, Mintaka), Saiph, Rigel
-const ORION_STARS = [
-  { x: -0.35, y: -0.65, size: 2.8, name: 'Betelgeuse', hue: 15 },   // red supergiant
-  { x:  0.30, y: -0.60, size: 2.2, name: 'Bellatrix', hue: 220 },
-  { x: -0.12, y: -0.05, size: 2.0, name: 'Alnitak', hue: 220 },     // belt
-  { x:  0.00, y: -0.08, size: 2.2, name: 'Alnilam', hue: 220 },     // belt center
-  { x:  0.12, y: -0.11, size: 2.0, name: 'Mintaka', hue: 220 },     // belt
-  { x: -0.35, y:  0.55, size: 2.0, name: 'Saiph', hue: 220 },
-  { x:  0.35, y:  0.60, size: 2.8, name: 'Rigel', hue: 210 },       // blue supergiant
-];
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  size: number;
+  type: 'flame' | 'ember' | 'spark';
+}
 
-// Constellation lines (indices into ORION_STARS)
-const ORION_LINES = [
-  [0, 1],    // shoulders
-  [0, 2],    // left shoulder to belt
-  [1, 4],    // right shoulder to belt
-  [2, 3],    // belt
-  [3, 4],    // belt
-  [2, 5],    // belt to left foot
-  [4, 6],    // belt to right foot
-];
+const STATE_PALETTES = {
+  idle: {
+    core: [255, 107, 53],
+    mid: [180, 60, 20],
+    outer: [80, 25, 8],
+    spark: [255, 160, 80],
+    label: 'smoldering',
+    labelColor: 'rgba(255,107,53,0.5)',
+  },
+  thinking: {
+    core: [255, 170, 50],
+    mid: [255, 107, 53],
+    outer: [160, 50, 15],
+    spark: [255, 200, 100],
+    label: 'thinking',
+    labelColor: 'rgba(255,170,50,0.8)',
+  },
+  active: {
+    core: [255, 230, 120],
+    mid: [255, 160, 40],
+    outer: [255, 80, 20],
+    spark: [255, 240, 180],
+    label: 'working',
+    labelColor: 'rgba(255,200,80,0.9)',
+  },
+  alert: {
+    core: [255, 255, 220],
+    mid: [255, 60, 30],
+    outer: [200, 20, 10],
+    spark: [255, 100, 50],
+    label: 'alert',
+    labelColor: 'rgba(255,80,40,1)',
+  },
+};
+
+const STATE_CONFIGS = {
+  idle: {
+    flameHeight: 0.3,
+    flameWidth: 0.4,
+    particleRate: 0.2,
+    sparkRate: 0,
+    emberRate: 0.3,
+    flickerSpeed: 0.8,
+    flickerAmp: 0.08,
+    glowAlpha: 0.12,
+    baseEmberCount: 3,
+    turbulence: 0.3,
+  },
+  thinking: {
+    flameHeight: 0.5,
+    flameWidth: 0.45,
+    particleRate: 0.6,
+    sparkRate: 0.08,
+    emberRate: 0.25,
+    flickerSpeed: 1.8,
+    flickerAmp: 0.12,
+    glowAlpha: 0.2,
+    baseEmberCount: 4,
+    turbulence: 0.6,
+  },
+  active: {
+    flameHeight: 0.7,
+    flameWidth: 0.5,
+    particleRate: 0.9,
+    sparkRate: 0.35,
+    emberRate: 0.15,
+    flickerSpeed: 2.5,
+    flickerAmp: 0.15,
+    glowAlpha: 0.3,
+    baseEmberCount: 6,
+    turbulence: 0.9,
+  },
+  alert: {
+    flameHeight: 0.65,
+    flameWidth: 0.55,
+    particleRate: 1.0,
+    sparkRate: 0.5,
+    emberRate: 0.1,
+    flickerSpeed: 4.0,
+    flickerAmp: 0.2,
+    glowAlpha: 0.4,
+    baseEmberCount: 5,
+    turbulence: 1.2,
+  },
+};
+
+// Canvas dimensions — compact for sidebar
+const W = 120;
+const H = 100;
+const BASE_Y = H * 0.88; // flame base near bottom
+const CX = W / 2;
 
 export function StatusOrb({ state = 'idle' }: StatusOrbProps): React.ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
+  const particlesRef = useRef<Particle[]>([]);
   const [mounted, setMounted] = useState(false);
-  const bgStarsRef = useRef<Array<{ x: number; y: number; size: number; speed: number; phase: number }>>([]);
+  const currentConfigRef = useRef({ ...STATE_CONFIGS.idle });
+  const currentPaletteRef = useRef({
+    core: [...STATE_PALETTES.idle.core],
+    mid: [...STATE_PALETTES.idle.mid],
+    outer: [...STATE_PALETTES.idle.outer],
+    spark: [...STATE_PALETTES.idle.spark],
+  });
 
-  useEffect(() => {
-    setMounted(true);
-    // Generate background star field once
-    const stars = [];
-    for (let i = 0; i < 40; i++) {
-      stars.push({
-        x: Math.random(),
-        y: Math.random(),
-        size: Math.random() * 1.2 + 0.3,
-        speed: Math.random() * 2 + 0.5,
-        phase: Math.random() * Math.PI * 2,
-      });
-    }
-    bgStarsRef.current = stars;
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
-    const size = 160;
-    canvas.width = size;
-    canvas.height = size;
-    const cx = size / 2;
-    const cy = size / 2;
-
-    const getConfig = () => {
-      switch (state) {
-        case 'idle':
-          return {
-            baseRadius: 34,
-            blobAmp: 2.5,
-            blobSpeed: 0.3,
-            pulseAmp: 2,
-            pulseSpeed: 0.6,
-            nebulaColor1: [88, 28, 135],   // deep purple
-            nebulaColor2: [30, 27, 75],     // dark indigo
-            nebulaColor3: [59, 7, 100],     // violet
-            glowAlpha: 0.2,
-            starBrightness: 0.6,
-            constellationAlpha: 0.3,
-            particleCount: 0,
-          };
-        case 'thinking':
-          return {
-            baseRadius: 48,
-            blobAmp: 6,
-            blobSpeed: 1.2,
-            pulseAmp: 4,
-            pulseSpeed: 1.6,
-            nebulaColor1: [30, 27, 140],    // deep blue
-            nebulaColor2: [67, 56, 220],    // bright indigo
-            nebulaColor3: [129, 60, 237],   // vivid violet
-            glowAlpha: 0.45,
-            starBrightness: 0.9,
-            constellationAlpha: 0.65,
-            particleCount: 0,
-          };
-        case 'active':
-          return {
-            baseRadius: 54,
-            blobAmp: 9,
-            blobSpeed: 1.8,
-            pulseAmp: 5,
-            pulseSpeed: 2.2,
-            nebulaColor1: [6, 95, 70],      // deep emerald
-            nebulaColor2: [13, 168, 146],   // bright teal
-            nebulaColor3: [34, 211, 153],   // vivid emerald
-            glowAlpha: 0.5,
-            starBrightness: 1.0,
-            constellationAlpha: 0.85,
-            particleCount: 12,
-          };
-        case 'alert':
-          return {
-            baseRadius: 52,
-            blobAmp: 7,
-            blobSpeed: 3.0,
-            pulseAmp: 6,
-            pulseSpeed: 4.0,
-            nebulaColor1: [150, 20, 20],    // deep red
-            nebulaColor2: [220, 38, 38],    // vivid red
-            nebulaColor3: [249, 115, 22],   // bright orange
-            glowAlpha: 0.6,
-            starBrightness: 1.0,
-            constellationAlpha: 0.9,
-            particleCount: 0,
-          };
-        default:
-          return {
-            baseRadius: 34,
-            blobAmp: 2.5,
-            blobSpeed: 0.3,
-            pulseAmp: 2,
-            pulseSpeed: 0.6,
-            nebulaColor1: [88, 28, 135],
-            nebulaColor2: [30, 27, 75],
-            nebulaColor3: [59, 7, 100],
-            glowAlpha: 0.2,
-            starBrightness: 0.6,
-            constellationAlpha: 0.3,
-            particleCount: 0,
-          };
-      }
-    };
+    canvas.width = W;
+    canvas.height = H;
+    const particles = particlesRef.current;
 
     let t = 0;
+    const lerp = (a: number, b: number, f: number) => a + (b - a) * f;
+    const lerpArr = (a: number[], b: number[], f: number) => a.map((v, i) => lerp(v, b[i], f));
+
     const draw = () => {
-      const cfg = getConfig();
+      const targetCfg = STATE_CONFIGS[state];
+      const targetPal = STATE_PALETTES[state];
+      const cfg = currentConfigRef.current;
+      const pal = currentPaletteRef.current;
+      const s = 0.04;
+
+      for (const key of Object.keys(targetCfg) as (keyof typeof targetCfg)[]) {
+        (cfg as Record<string, number>)[key] = lerp((cfg as Record<string, number>)[key], targetCfg[key], s);
+      }
+      pal.core = lerpArr(pal.core, targetPal.core, s) as number[];
+      pal.mid = lerpArr(pal.mid, targetPal.mid, s) as number[];
+      pal.outer = lerpArr(pal.outer, targetPal.outer, s) as number[];
+      pal.spark = lerpArr(pal.spark, targetPal.spark, s) as number[];
+
       t += 0.016;
-      ctx.clearRect(0, 0, size, size);
+      ctx.clearRect(0, 0, W, H);
 
-      const pulse = Math.sin(t * cfg.pulseSpeed);
-      const blobR = cfg.baseRadius + pulse * cfg.pulseAmp;
+      // Ambient ground glow
+      const glow = ctx.createRadialGradient(CX, BASE_Y, 0, CX, BASE_Y, W * 0.5);
+      glow.addColorStop(0, `rgba(${pal.mid[0]}, ${pal.mid[1]}, ${pal.mid[2]}, ${cfg.glowAlpha})`);
+      glow.addColorStop(0.6, `rgba(${pal.mid[0]}, ${pal.mid[1]}, ${pal.mid[2]}, ${cfg.glowAlpha * 0.2})`);
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
 
-      // ===== OUTER NEBULA GLOW =====
-      const glowPulse = 1 + pulse * 0.12;
-      const nebulaGlow = ctx.createRadialGradient(cx, cy, blobR * 0.5, cx, cy, blobR * 2.2 * glowPulse);
-      const [r1, g1, b1] = cfg.nebulaColor3;
-      nebulaGlow.addColorStop(0, `rgba(${r1}, ${g1}, ${b1}, ${cfg.glowAlpha})`);
-      nebulaGlow.addColorStop(0.5, `rgba(${r1}, ${g1}, ${b1}, ${cfg.glowAlpha * 0.3})`);
-      nebulaGlow.addColorStop(1, 'transparent');
-      ctx.fillStyle = nebulaGlow;
-      ctx.fillRect(0, 0, size, size);
-
-      // ===== ALERT: EXPANDING SHOCKWAVES =====
+      // Alert pulse ring
       if (state === 'alert') {
-        for (let w = 0; w < 2; w++) {
-          const phase = ((t * 1.2) + w * 1.0) % 2.5;
-          if (phase < 2.0) {
-            const ringR = blobR + phase * 20;
-            const alpha = Math.max(0, 0.35 - phase * 0.18);
-            ctx.beginPath();
-            ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-            ctx.strokeStyle = `rgba(239, 68, 68, ${alpha})`;
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
+        const phase = (t * 2.0) % 2.5;
+        if (phase < 2.0) {
+          const r = 12 + phase * 25;
+          const a = Math.max(0, 0.35 - phase * 0.18);
+          ctx.beginPath();
+          ctx.arc(CX, BASE_Y - 20, r, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(255, 60, 30, ${a})`;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+
+      // Ember bed
+      for (let i = 0; i < cfg.baseEmberCount; i++) {
+        const angle = (i / cfg.baseEmberCount) * Math.PI;
+        const spread = 12 + Math.sin(t * 0.5 + i * 1.7) * 4;
+        const ex = CX + Math.cos(angle) * spread - spread / 2;
+        const ey = BASE_Y + Math.sin(t * 0.3 + i * 2.1) * 2 - 1;
+        const pulse = 0.5 + Math.sin(t * cfg.flickerSpeed * 0.5 + i * 1.3) * 0.3;
+        const eSize = 2 + pulse * 2;
+        const eg = ctx.createRadialGradient(ex, ey, 0, ex, ey, eSize);
+        eg.addColorStop(0, `rgba(${pal.core[0]}, ${pal.core[1]}, ${pal.core[2]}, ${0.6 * pulse})`);
+        eg.addColorStop(0.5, `rgba(${pal.mid[0]}, ${pal.mid[1]}, ${pal.mid[2]}, ${0.3 * pulse})`);
+        eg.addColorStop(1, 'transparent');
+        ctx.fillStyle = eg;
+        ctx.beginPath();
+        ctx.arc(ex, ey, eSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Flame body
+      const flameH = H * cfg.flameHeight;
+      const flameW = W * cfg.flameWidth * 0.35;
+      const layers = [
+        { wMul: 1.3, aMul: 0.3, col: pal.outer, yo: 3 },
+        { wMul: 1.0, aMul: 0.5, col: pal.mid, yo: 0 },
+        { wMul: 0.55, aMul: 0.8, col: pal.core, yo: -3 },
+      ];
+
+      for (const l of layers) {
+        ctx.save();
+        ctx.translate(CX, BASE_Y + l.yo);
+        ctx.beginPath();
+        const seg = 36;
+        const lw = flameW * l.wMul;
+        for (let i = 0; i <= seg; i++) {
+          const p = i / seg;
+          let x: number, y: number;
+          if (p <= 0.5) {
+            const up = p * 2;
+            const w = lw * (1 - up * 0.75);
+            const h = flameH * up;
+            const turb =
+              Math.sin(t * cfg.flickerSpeed + up * 4) * cfg.flickerAmp * w +
+              Math.sin(t * cfg.flickerSpeed * 1.7 + up * 6) * cfg.flickerAmp * 0.5 * w +
+              Math.sin(t * cfg.flickerSpeed * 0.4 + up * 2) * cfg.turbulence * 2;
+            x = -w + turb;
+            y = -h;
+          } else {
+            const up = (1 - p) * 2;
+            const w = lw * (1 - up * 0.75);
+            const h = flameH * up;
+            const turb =
+              Math.sin(t * cfg.flickerSpeed + up * 4 + 2) * cfg.flickerAmp * w +
+              Math.sin(t * cfg.flickerSpeed * 1.7 + up * 6 + 2) * cfg.flickerAmp * 0.5 * w +
+              Math.sin(t * cfg.flickerSpeed * 0.4 + up * 2 + 1) * cfg.turbulence * 2;
+            x = w + turb;
+            y = -h;
           }
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
         }
-      }
-
-      // ===== BLOB BODY (NEBULA) =====
-      ctx.save();
-      ctx.translate(cx, cy);
-
-      // Alert shake
-      if (state === 'alert') {
-        const shakeEnv = Math.max(0, Math.sin(t * 3.5));
-        ctx.translate(Math.sin(t * 22) * 1.8 * shakeEnv, Math.cos(t * 18) * 0.8 * shakeEnv);
-      }
-
-      // Build blob path
-      ctx.beginPath();
-      const segments = 80;
-      for (let i = 0; i <= segments; i++) {
-        const angle = (i / segments) * Math.PI * 2;
-        const n =
-          Math.sin(angle * 2 + t * cfg.blobSpeed) * cfg.blobAmp * 0.35 +
-          Math.sin(angle * 3 - t * cfg.blobSpeed * 1.4) * cfg.blobAmp * 0.35 +
-          Math.sin(angle * 5 + t * cfg.blobSpeed * 0.8) * cfg.blobAmp * 0.2 +
-          Math.sin(angle * 7 - t * cfg.blobSpeed * 0.5) * cfg.blobAmp * 0.1;
-        const r = blobR + n;
-        const x = Math.cos(angle) * r;
-        const y = Math.sin(angle) * r;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-
-      // Clip to blob shape for everything inside
-      ctx.save();
-      ctx.clip();
-
-      // Nebula gradient fill
-      const [nr1, ng1, nb1] = cfg.nebulaColor1;
-      const [nr2, ng2, nb2] = cfg.nebulaColor2;
-      const [nr3, ng3, nb3] = cfg.nebulaColor3;
-      const nebGrad = ctx.createRadialGradient(-10, -10, 0, 0, 0, blobR + cfg.blobAmp);
-      nebGrad.addColorStop(0, `rgb(${nr3}, ${ng3}, ${nb3})`);
-      nebGrad.addColorStop(0.4, `rgb(${nr2}, ${ng2}, ${nb2})`);
-      nebGrad.addColorStop(1, `rgb(${nr1}, ${ng1}, ${nb1})`);
-      ctx.fillStyle = nebGrad;
-      ctx.fill();
-
-      // Nebula swirls — translucent drifting color patches
-      for (let s = 0; s < 3; s++) {
-        const sAngle = t * 0.15 + s * 2.1;
-        const sx = Math.cos(sAngle) * blobR * 0.35;
-        const sy = Math.sin(sAngle) * blobR * 0.3;
-        const sGrad = ctx.createRadialGradient(sx, sy, 0, sx, sy, blobR * 0.5);
-        sGrad.addColorStop(0, `rgba(${nr3 + 30}, ${ng3 + 30}, ${nb3 + 30}, 0.2)`);
-        sGrad.addColorStop(1, 'transparent');
-        ctx.fillStyle = sGrad;
-        ctx.fillRect(-blobR - 10, -blobR - 10, (blobR + 10) * 2, (blobR + 10) * 2);
-      }
-
-      // ===== BACKGROUND STARS inside blob =====
-      const bgStars = bgStarsRef.current;
-      for (const star of bgStars) {
-        const sx = (star.x - 0.5) * blobR * 2;
-        const sy = (star.y - 0.5) * blobR * 2;
-        const twinkle = (Math.sin(t * star.speed + star.phase) + 1) / 2;
-        const alpha = (0.2 + twinkle * 0.5) * cfg.starBrightness;
-        ctx.beginPath();
-        ctx.arc(sx, sy, star.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.closePath();
+        const fg = ctx.createLinearGradient(0, 0, 0, -flameH);
+        fg.addColorStop(0, `rgba(${l.col[0]}, ${l.col[1]}, ${l.col[2]}, ${l.aMul})`);
+        fg.addColorStop(0.4, `rgba(${l.col[0]}, ${l.col[1]}, ${l.col[2]}, ${l.aMul * 0.7})`);
+        fg.addColorStop(0.85, `rgba(${l.col[0]}, ${l.col[1]}, ${l.col[2]}, ${l.aMul * 0.2})`);
+        fg.addColorStop(1, `rgba(${l.col[0]}, ${l.col[1]}, ${l.col[2]}, 0)`);
+        ctx.fillStyle = fg;
         ctx.fill();
+        ctx.restore();
       }
 
-      // ===== ORION CONSTELLATION =====
-      const conScale = blobR * 0.55;
-      const conAlpha = cfg.constellationAlpha;
+      // Hot core glow
+      const cg = ctx.createRadialGradient(CX, BASE_Y - flameH * 0.12, 0, CX, BASE_Y - flameH * 0.12, flameW * 0.5);
+      const cp = 0.25 + Math.sin(t * cfg.flickerSpeed * 0.8) * 0.12;
+      cg.addColorStop(0, `rgba(${pal.core[0]}, ${pal.core[1]}, ${pal.core[2]}, ${cp})`);
+      cg.addColorStop(0.6, `rgba(${pal.core[0]}, ${pal.core[1]}, ${pal.core[2]}, ${cp * 0.2})`);
+      cg.addColorStop(1, 'transparent');
+      ctx.fillStyle = cg;
+      ctx.fillRect(0, 0, W, H);
 
-      // Thinking: slow rotation
-      if (state === 'thinking') {
-        ctx.rotate(Math.sin(t * 0.3) * 0.08);
+      // Particles
+      if (Math.random() < cfg.particleRate) {
+        particles.push({
+          x: CX + (Math.random() - 0.5) * flameW,
+          y: BASE_Y - Math.random() * flameH * 0.4,
+          vx: (Math.random() - 0.5) * cfg.turbulence,
+          vy: -(0.8 + Math.random() * 1.5),
+          life: 1, maxLife: 0.4 + Math.random() * 0.6,
+          size: 0.8 + Math.random() * 1.5, type: 'flame',
+        });
+      }
+      if (Math.random() < cfg.sparkRate) {
+        particles.push({
+          x: CX + (Math.random() - 0.5) * flameW * 0.6,
+          y: BASE_Y - flameH * (0.2 + Math.random() * 0.4),
+          vx: (Math.random() - 0.5) * 2.5,
+          vy: -(1.5 + Math.random() * 2.5),
+          life: 1, maxLife: 0.3 + Math.random() * 0.4,
+          size: 0.4 + Math.random() * 1, type: 'spark',
+        });
+      }
+      if (Math.random() < cfg.emberRate) {
+        particles.push({
+          x: CX + (Math.random() - 0.5) * 20,
+          y: BASE_Y - Math.random() * 6,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: -(0.2 + Math.random() * 0.6),
+          life: 1, maxLife: 0.8 + Math.random() * 1.2,
+          size: 0.8 + Math.random() * 1.5, type: 'ember',
+        });
       }
 
-      // Draw constellation lines
-      ctx.strokeStyle = `rgba(200, 200, 255, ${conAlpha * 0.4})`;
-      ctx.lineWidth = 0.8;
-      for (const [a, b] of ORION_LINES) {
-        const sa = ORION_STARS[a];
-        const sb = ORION_STARS[b];
-        ctx.beginPath();
-        ctx.moveTo(sa.x * conScale, sa.y * conScale);
-        ctx.lineTo(sb.x * conScale, sb.y * conScale);
-        ctx.stroke();
-      }
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= 0.016 / p.maxLife;
+        if (p.life <= 0) { particles.splice(i, 1); continue; }
+        p.vx += (Math.random() - 0.5) * 0.15 * cfg.turbulence;
+        p.x += p.vx;
+        p.y += p.vy;
+        const alpha = p.life * (p.type === 'spark' ? 1 : 0.6);
+        const sz = p.size * (p.type === 'spark' ? (0.5 + p.life * 0.5) : 1);
 
-      // Draw constellation stars
-      for (let i = 0; i < ORION_STARS.length; i++) {
-        const star = ORION_STARS[i];
-        const sx = star.x * conScale;
-        const sy = star.y * conScale;
-        const twinkle = 0.7 + Math.sin(t * 1.5 + i * 1.1) * 0.3;
-        const sz = star.size * twinkle * (state === 'active' ? 1.2 : 1.0);
-
-        // Star glow
-        const starGlow = ctx.createRadialGradient(sx, sy, 0, sx, sy, sz * 3);
-        if (star.hue < 100) {
-          // Betelgeuse: reddish
-          starGlow.addColorStop(0, `rgba(255, 180, 120, ${conAlpha * 0.6 * twinkle})`);
+        if (p.type === 'spark') {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, sz, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${pal.spark[0]}, ${pal.spark[1]}, ${pal.spark[2]}, ${alpha})`;
+          ctx.fill();
+        } else if (p.type === 'ember') {
+          const eg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, sz * 1.5);
+          eg.addColorStop(0, `rgba(${pal.core[0]}, ${pal.core[1]}, ${pal.core[2]}, ${alpha * 0.7})`);
+          eg.addColorStop(1, 'transparent');
+          ctx.fillStyle = eg;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, sz * 1.5, 0, Math.PI * 2);
+          ctx.fill();
         } else {
-          starGlow.addColorStop(0, `rgba(180, 200, 255, ${conAlpha * 0.5 * twinkle})`);
-        }
-        starGlow.addColorStop(1, 'transparent');
-        ctx.fillStyle = starGlow;
-        ctx.beginPath();
-        ctx.arc(sx, sy, sz * 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Star core
-        ctx.beginPath();
-        ctx.arc(sx, sy, sz, 0, Math.PI * 2);
-        if (star.hue < 100) {
-          ctx.fillStyle = `rgba(255, 200, 150, ${conAlpha * twinkle})`;
-        } else {
-          ctx.fillStyle = `rgba(220, 230, 255, ${conAlpha * twinkle})`;
-        }
-        ctx.fill();
-      }
-
-      // ===== ACTIVE: cosmic energy particles drifting outward =====
-      if (state === 'active' && cfg.particleCount > 0) {
-        for (let i = 0; i < cfg.particleCount; i++) {
-          const seed = i * 137.508;
-          const pPhase = (t * 0.4 + seed) % (Math.PI * 2);
-          const pR = 8 + (pPhase / (Math.PI * 2)) * (blobR - 10);
-          const pAngle = seed + t * 0.3;
-          const px = Math.cos(pAngle) * pR;
-          const py = Math.sin(pAngle) * pR;
-          const pAlpha = 0.3 + Math.sin(pPhase) * 0.3;
           ctx.beginPath();
-          ctx.arc(px, py, 1.2, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(167, 243, 208, ${pAlpha})`;
+          ctx.arc(p.x, p.y, sz, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${pal.mid[0]}, ${pal.mid[1]}, ${pal.mid[2]}, ${alpha * 0.4})`;
           ctx.fill();
         }
       }
-
-      // Inner highlight (top-left specular)
-      const innerHL = ctx.createRadialGradient(-blobR * 0.25, -blobR * 0.35, 0, 0, 0, blobR * 0.7);
-      innerHL.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
-      innerHL.addColorStop(1, 'transparent');
-      ctx.fillStyle = innerHL;
-      ctx.fillRect(-blobR - 10, -blobR - 10, (blobR + 10) * 2, (blobR + 10) * 2);
-
-      ctx.restore(); // unclip
-
-      // ===== BLOB EDGE — subtle bright rim =====
-      // Re-draw path for stroke
-      ctx.beginPath();
-      for (let i = 0; i <= segments; i++) {
-        const angle = (i / segments) * Math.PI * 2;
-        const n =
-          Math.sin(angle * 2 + t * cfg.blobSpeed) * cfg.blobAmp * 0.35 +
-          Math.sin(angle * 3 - t * cfg.blobSpeed * 1.4) * cfg.blobAmp * 0.35 +
-          Math.sin(angle * 5 + t * cfg.blobSpeed * 0.8) * cfg.blobAmp * 0.2 +
-          Math.sin(angle * 7 - t * cfg.blobSpeed * 0.5) * cfg.blobAmp * 0.1;
-        const r = blobR + n;
-        const x = Math.cos(angle) * r;
-        const y = Math.sin(angle) * r;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.strokeStyle = `rgba(${nr3 + 60}, ${ng3 + 60}, ${nb3 + 60}, 0.25)`;
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
-
-      ctx.restore(); // untranslate
-
-      // ===== THINKING: orbiting thought particles =====
-      if (state === 'thinking') {
-        for (let i = 0; i < 5; i++) {
-          const orbitR = blobR + 8 + i * 2;
-          const orbitAngle = t * (1.0 + i * 0.15) + (i * Math.PI * 2) / 5;
-          const px = cx + Math.cos(orbitAngle) * orbitR;
-          const py = cy + Math.sin(orbitAngle) * orbitR;
-          const pAlpha = 0.5 + Math.sin(t * 2 + i) * 0.3;
-
-          // Particle glow
-          const pGlow = ctx.createRadialGradient(px, py, 0, px, py, 4);
-          pGlow.addColorStop(0, `rgba(167, 139, 250, ${pAlpha})`);
-          pGlow.addColorStop(1, 'transparent');
-          ctx.fillStyle = pGlow;
-          ctx.beginPath();
-          ctx.arc(px, py, 4, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Core
-          ctx.beginPath();
-          ctx.arc(px, py, 1.2, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(221, 214, 254, ${pAlpha})`;
-          ctx.fill();
-        }
-      }
+      if (particles.length > 80) particles.splice(0, particles.length - 80);
 
       animRef.current = requestAnimationFrame(draw);
     };
@@ -380,29 +327,35 @@ export function StatusOrb({ state = 'idle' }: StatusOrbProps): React.ReactElemen
     return () => cancelAnimationFrame(animRef.current);
   }, [state]);
 
-  const label = state === 'active' ? 'working' : state;
-
-  const labelColor = {
-    idle: 'text-text-muted',
-    thinking: 'text-violet-400',
-    active: 'text-emerald-400',
-    alert: 'text-red-400',
-  }[state] || 'text-text-muted';
-
-  const labelGlow = state !== 'idle' ? 'font-semibold' : '';
+  const palette = STATE_PALETTES[state];
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div className={`relative ${state !== 'idle' ? 'w-24 h-24' : 'w-20 h-20'} transition-all duration-500 overflow-visible`}>
-        <canvas
-          ref={canvasRef}
-          className={`absolute -inset-6 w-[calc(100%+48px)] h-[calc(100%+48px)] transition-opacity duration-700 ${mounted ? 'opacity-100' : 'opacity-0'}`}
-          role="status"
-          aria-label={`Status: ${label}`}
-        />
-      </div>
-      <span className={`text-sm uppercase tracking-wider ${labelColor} ${labelGlow} transition-colors duration-500`}>
-        {label}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '120px', height: '110px', position: 'relative' }}>
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: `${W}px`,
+          height: `${H}px`,
+          opacity: mounted ? 1 : 0,
+          transition: 'opacity 0.7s',
+          pointerEvents: 'none',
+        }}
+        role="status"
+        aria-label={`Status: ${palette.label}`}
+      />
+      <span
+        style={{
+          fontSize: '0.6rem',
+          textTransform: 'uppercase',
+          letterSpacing: '0.18em',
+          fontWeight: 600,
+          color: palette.labelColor,
+          transition: 'color 0.5s',
+          marginTop: '-4px',
+          textShadow: state !== 'idle' ? `0 0 10px ${palette.labelColor}` : 'none',
+        }}
+      >
+        {palette.label}
       </span>
     </div>
   );

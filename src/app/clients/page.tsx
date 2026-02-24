@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { getDynamicSubtitle } from '@/lib/subtitles';
@@ -371,7 +371,7 @@ const STATUS_FILTERS: Array<{ key: ClientStatus | 'all'; label: string; icon: st
 
 type ClientTab = 'command' | 'billing' | 'a2p';
 
-export default function ClientsPage(): React.ReactElement {
+function ClientsPageInner(): React.ReactElement {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<ClientStatus | 'all'>('all');
@@ -632,5 +632,13 @@ export default function ClientsPage(): React.ReactElement {
         </>
       )}
     </div>
+  );
+}
+
+export default function ClientsPage(): React.ReactElement {
+  return (
+    <Suspense fallback={<div style={{ padding: '2rem', color: '#aaa' }}>Loading...</div>}>
+      <ClientsPageInner />
+    </Suspense>
   );
 }

@@ -63,6 +63,10 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
   const [advancing, setAdvancing] = useState<string | null>(null);
   const [rotating, setRotating] = useState(false);
   const [rotateMsg, setRotateMsg] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<{ periodId: string; field: 'incomeTracked' | 'incomeRetainer' | 'incomeProject' } | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   // Month navigation
   const now = new Date();
@@ -234,6 +238,54 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
     URL.revokeObjectURL(url);
   }, [sortedPeriods, viewMonth, viewYear, getClientName]);
 
+  // Sync billing from time entries
+  const handleSync = useCallback(async () => {
+    setSyncing(true);
+    setSyncMsg(null);
+    try {
+      const res = await fetch('/api/billing/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month: viewMonth, year: viewYear }),
+      });
+      if (!res.ok) throw new Error('Failed to sync');
+      const result = await res.json() as { updated: { client: string; oldTracked: number; newTracked: number }[]; unchanged: string[] };
+      const msg = result.updated.length > 0
+        ? `Synced ${result.updated.length} client${result.updated.length > 1 ? 's' : ''}`
+        : 'All in sync ✓';
+      setSyncMsg(msg);
+      if (result.updated.length > 0) fetchData();
+      setTimeout(() => setSyncMsg(null), 3000);
+    } catch (error) {
+      console.error('Error syncing billing:', error);
+      setSyncMsg('Sync failed');
+      setTimeout(() => setSyncMsg(null), 3000);
+    } finally {
+      setSyncing(false);
+    }
+  }, [viewMonth, viewYear, fetchData]);
+
+  // Inline edit: save
+  const saveEdit = useCallback(async () => {
+    if (!editingCell) return;
+    const numVal = parseFloat(editValue) || 0;
+    const { periodId, field } = editingCell;
+    try {
+      const res = await fetch('/api/billing', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: periodId, [field]: numVal }),
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      const updated = await res.json() as BillingPeriod;
+      setBillingPeriods(prev => prev.map(p => p.id === periodId ? updated : p));
+    } catch (error) {
+      console.error('Error updating billing:', error);
+    }
+    setEditingCell(null);
+    setEditValue('');
+  }, [editingCell, editValue]);
+
   const fmt = (n: number) => n === 0 ? '—' : `$${Math.round(n).toLocaleString()}`;
 
   return (
@@ -271,12 +323,15 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
           <EmberButton size="sm" variant="primary" onClick={handleRotate} disabled={rotating}>
             {rotating ? 'Creating...' : 'New Month'}
           </EmberButton>
+          <EmberButton size="sm" variant="ghost" onClick={handleSync} disabled={syncing}>
+            {syncing ? 'Syncing...' : '⟳ Sync Time'}
+          </EmberButton>
           <EmberButton size="sm" variant="ghost" onClick={handleExportCSV} disabled={sortedPeriods.length === 0}>
             Export CSV
           </EmberButton>
-          {rotateMsg && (
+          {(rotateMsg || syncMsg) && (
             <span style={{ fontSize: typography.fontSize.caption, color: color.status.healthy }}>
-              {rotateMsg}
+              {rotateMsg || syncMsg}
             </span>
           )}
         </div>
@@ -317,7 +372,7 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['Client', 'Tracked', 'Retainer', 'Project', 'Total', 'Status'].map(h => (
+                {['Client', 'Tracked', 'Retainer', 'Project', 'Total', 'Status', 'Notes'].map(h => (
                   <th
                     key={h}
                     style={{
@@ -345,27 +400,45 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
                   }}>
                     {getClientName(period.clientId)}
                   </td>
-                  <td style={{
-                    padding: '10px 12px', textAlign: 'right', fontSize: typography.fontSize.body,
-                    color: period.incomeTracked > 0 ? color.status.healthy : color.text.dim,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}>
-                    {fmt(period.incomeTracked)}
-                  </td>
-                  <td style={{
-                    padding: '10px 12px', textAlign: 'right', fontSize: typography.fontSize.body,
-                    color: period.incomeRetainer > 0 ? color.ember.flame : color.text.dim,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}>
-                    {fmt(period.incomeRetainer)}
-                  </td>
-                  <td style={{
-                    padding: '10px 12px', textAlign: 'right', fontSize: typography.fontSize.body,
-                    color: period.incomeProject > 0 ? color.ember.DEFAULT : color.text.dim,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}>
-                    {fmt(period.incomeProject)}
-                  </td>
+                  {(['incomeTracked', 'incomeRetainer', 'incomeProject'] as const).map(field => {
+                    const val = period[field];
+                    const isEditing = editingCell?.periodId === period.id && editingCell?.field === field;
+                    const fieldColor = field === 'incomeTracked' ? color.status.healthy
+                      : field === 'incomeRetainer' ? color.ember.flame : color.ember.DEFAULT;
+                    return (
+                      <td
+                        key={field}
+                        onDoubleClick={() => {
+                          setEditingCell({ periodId: period.id, field });
+                          setEditValue(String(val || ''));
+                        }}
+                        style={{
+                          padding: '10px 12px', textAlign: 'right', fontSize: typography.fontSize.body,
+                          color: val > 0 ? fieldColor : color.text.dim,
+                          fontVariantNumeric: 'tabular-nums',
+                          cursor: 'pointer',
+                        }}
+                        title="Double-click to edit"
+                      >
+                        {isEditing ? (
+                          <input
+                            type="number"
+                            value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onBlur={saveEdit}
+                            onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') { setEditingCell(null); setEditValue(''); } }}
+                            autoFocus
+                            style={{
+                              width: '80px', textAlign: 'right', background: 'rgba(255,255,255,0.08)',
+                              border: `1px solid ${color.ember.flame}`, borderRadius: radius.sm,
+                              color: color.text.primary, padding: '2px 6px', fontSize: typography.fontSize.body,
+                              outline: 'none',
+                            }}
+                          />
+                        ) : fmt(val)}
+                      </td>
+                    );
+                  })}
                   <td style={{
                     padding: '10px 12px', textAlign: 'right', fontSize: typography.fontSize.body,
                     fontWeight: typography.fontWeight.semibold, color: color.ember.flame,
@@ -379,6 +452,13 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
                       onClick={() => advanceStatus(period.id)}
                       disabled={advancing === period.id}
                     />
+                  </td>
+                  <td style={{
+                    padding: '10px 12px', fontSize: typography.fontSize.caption,
+                    color: color.text.dim, maxWidth: '150px', overflow: 'hidden',
+                    textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }} title={period.notes || 'No notes'}>
+                    {period.notes || '—'}
                   </td>
                 </tr>
               ))}
@@ -401,6 +481,7 @@ export function MonthlyBilling({ clients: propClients }: MonthlyBillingProps): R
                 <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: color.ember.flame, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 12px rgba(255, 179, 71, 0.3)` }}>
                   ${Math.round(summary.total).toLocaleString()}
                 </td>
+                <td />
                 <td />
               </tr>
             </tfoot>
