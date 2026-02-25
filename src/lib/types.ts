@@ -134,6 +134,7 @@ export interface KanbanCard {
   client?: string;
   dueDate?: string;
   subtasks?: KanbanSubtask[];
+  source?: string;
 }
 
 export interface KanbanColumn {
@@ -350,6 +351,22 @@ export interface BillingPeriod {
 
 export interface BillingData {
   billingPeriods: BillingPeriod[];
+  lastUpdated: string;
+}
+
+// Webhook Types
+
+export interface WebhookEvent {
+  id: string;
+  source: string;
+  event?: string;
+  payload: Record<string, unknown>;
+  receivedAt: string;
+  seen: boolean;
+}
+
+export interface WebhooksData {
+  events: WebhookEvent[];
   lastUpdated: string;
 }
 

@@ -260,6 +260,50 @@ export function Sidebar(): React.ReactElement {
               SYSTEM
             </div>
             <Link
+              href="/webhooks"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '9px 14px',
+                borderRadius: radius.md,
+                color: pathname === '/webhooks' ? color.ember.flame : color.text.secondary,
+                background: pathname === '/webhooks' ? 'rgba(255,107,53,0.07)' : 'transparent',
+                fontSize: '0.82rem',
+                textDecoration: 'none',
+                transition: `all ${animation.duration.normal} ${animation.easing.default}`,
+              }}
+              onMouseEnter={(e) => {
+                if (pathname !== '/webhooks') {
+                  e.currentTarget.style.color = color.text.primary;
+                  e.currentTarget.style.transform = 'translateX(3px)';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.025)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (pathname !== '/webhooks') {
+                  e.currentTarget.style.color = color.text.secondary;
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.background = 'transparent';
+                }
+              }}
+            >
+              {pathname === '/webhooks' && (
+                <div style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: '6px',
+                  bottom: '6px',
+                  width: '3px',
+                  borderRadius: '0 2px 2px 0',
+                  background: color.ember.DEFAULT,
+                  boxShadow: `0 0 8px rgba(255,107,53,0.4)`,
+                }} />
+              )}
+              <span style={{ fontSize: '0.95rem', width: '22px', textAlign: 'center' }}>⚡</span>
+              <span>Webhooks</span>
+            </Link>
+            <Link
               href="/settings"
               style={{
                 display: 'flex',

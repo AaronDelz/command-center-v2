@@ -181,9 +181,30 @@ export function KanbanColumn({ column, ownerFilter = 'all', clientFilter = 'all'
         className="space-y-2"
       >
         {isDone && hideDone ? (
-          <div className="text-center text-xs py-4 italic" style={{ color: '#555060' }}>
-            {cardCount} completed — click 👁 to show
-          </div>
+          <>
+            {filteredCards.slice(0, 10).map((card) => (
+              <KanbanCard
+                key={card.id}
+                card={card}
+                columnId={column.id}
+                compact={compactMode}
+                onClick={() => onCardClick?.(card.id, column.id)}
+              />
+            ))}
+            {cardCount > 10 && (
+              <button
+                onClick={onToggleHideDone}
+                className="w-full text-center text-xs py-2 rounded-lg transition-all hover:scale-[1.02]"
+                style={{
+                  color: '#8a8494',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
+                Show all {cardCount} cards
+              </button>
+            )}
+          </>
         ) : filteredCards.length === 0 ? (
           <div className="text-center text-xs py-4 italic" style={{ color: '#555060' }}>
             No cards

@@ -221,6 +221,21 @@ export function KanbanCard({ card, columnId, compact = false, onClick }: KanbanC
         </p>
       )}
 
+      {/* Source badge */}
+      {card.source && (
+        <div style={{ marginBottom: '4px' }}>
+          <span style={{
+            fontSize: '0.5625rem', fontWeight: 600,
+            padding: '1px 6px', borderRadius: '9999px',
+            background: 'rgba(255, 179, 71, 0.12)',
+            border: '1px solid rgba(255, 179, 71, 0.25)',
+            color: '#ffb347', letterSpacing: '0.025em',
+          }}>
+            ⚡ {card.source}
+          </span>
+        </div>
+      )}
+
       {/* Tags */}
       {card.tags && card.tags.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: '4px', marginBottom: '6px' }}>
