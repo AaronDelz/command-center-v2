@@ -1,6 +1,24 @@
 {
   "drops": [
     {
+      "id": "drop-1772037637218",
+      "shortId": "C9Y",
+      "type": "link",
+      "content": "https://x.com/dr_cintas/status/2025263156897907102?s=20\nAll right, so I know we've talked about this. I think I've brought it up at least twice. The first time, I don't remember exactly what you said. You said not really needed. The second time I brought it up was just a couple days ago. And you said we don't really need that. But I think you said you set something up for yourself that's similar, that's more adapted to me and my style. Which is great. I like that.\n Can you check and see where it's being used? Because the last couple of social media posts that you provided me seem like they don't have that humanizer skill built into it. Because there was one or two of them that had the em dashes still. So I feel like you haven't been using that. So whatever needs to be done, can you get your humanizer skill or whatever you made to be used when you actually write copy for me?\n Whatever it may be. In the forge, in telegram here, in any content drafts. But yeah, if you can get it to have a copy to have that Aaron humanizer skill, that'd be great.",
+      "status": "new",
+      "createdAt": "2026-02-25T16:40:37.218Z",
+      "url": "https://x.com/dr_cintas/status/2025263156897907102?s=20\nAll right, so I know we've talked about this. I think I've brought it up at least twice. The first time, I don't remember exactly what you said. You said not really needed. The second time I brought it up was just a couple days ago. And you said we don't really need that. But I think you said you set something up for yourself that's similar, that's more adapted to me and my style. Which is great. I like that.\n Can you check and see where it's being used? Because the last couple of social media posts that you provided me seem like they don't have that humanizer skill built into it. Because there was one or two of them that had the em dashes still. So I feel like you haven't been using that. So whatever needs to be done, can you get your humanizer skill or whatever you made to be used when you actually write copy for me?\n Whatever it may be. In the forge, in telegram here, in any content drafts. But yeah, if you can get it to have a copy to have that Aaron humanizer skill, that'd be great."
+    },
+    {
+      "id": "drop-1772035106309",
+      "shortId": "M5Q",
+      "type": "link",
+      "content": "https://youtu.be/vxpuLIA17q4?si=HA96yPhK19TVukJ2\nI watched this last night. I'm kind of thinking of Discord now, sounds powerful. We have a pretty good system with Telegram and our group chats and topic. What other benefits would Discord have that we can't do with Telegram? Not saying we need to or will switch(add to) Discord, but wanted to get your take on it.",
+      "status": "new",
+      "createdAt": "2026-02-25T15:58:26.309Z",
+      "url": "https://youtu.be/vxpuLIA17q4?si=HA96yPhK19TVukJ2\nI watched this last night. I'm kind of thinking of Discord now, sounds powerful. We have a pretty good system with Telegram and our group chats and topic. What other benefits would Discord have that we can't do with Telegram? Not saying we need to or will switch(add to) Discord, but wanted to get your take on it."
+    },
+    {
       "id": "drop-1771602128684",
       "shortId": "B4X",
       "type": "file",
@@ -9,7 +27,16 @@
       "createdAt": "2026-02-20T15:42:08.684Z",
       "files": [
         "~/Documents/inbox/My_Mission_Statement_.txt"
-      ]
+      ],
+      "replies": [
+        {
+          "id": "reply-1772035229771",
+          "content": "I'm not sure if this is the one we came up with last week, but lets find the two we came up with (one about me and one for you, but together they are ours) and get it up on The Forge, top front and center.",
+          "author": "aaron",
+          "createdAt": "2026-02-25T16:00:29.771Z"
+        }
+      ],
+      "updatedAt": "2026-02-25T16:00:29.771Z"
     },
     {
       "id": "drop-1771593278688",
@@ -30,7 +57,10 @@
         "~/Documents/inbox/Swati_Laroia_Coon_1_-_February_19.txt",
         "~/Documents/inbox/Swati_Laroia_Coon_2_-_February_19.txt",
         "~/Documents/inbox/Swati_Laroia_Coon_3_-_February_19.txt"
-      ]
+      ],
+      "archived": true,
+      "archivedAt": "2026-02-25T16:00:55.895Z",
+      "updatedAt": "2026-02-25T16:00:55.895Z"
     },
     {
       "id": "drop-1771519537100",
@@ -82,7 +112,7 @@
       "title": "ClickUp Export — Time Tracking & Income CSV",
       "seen": true,
       "tag": "task",
-      "updatedAt": "2026-02-19T19:42:35.466Z",
+      "updatedAt": "2026-02-25T16:01:14.582Z",
       "replies": [
         {
           "id": "reply-orion-1771530155473-1534",
@@ -90,7 +120,9 @@
           "content": "👁️ Seen. This is the corrected billing/payment CSV from ClickUp. I'll cross-reference with the migration data already in the Forge to make sure payment statuses are accurate. Will update the billing periods that need correcting.",
           "createdAt": "2026-02-19T19:42:35.466Z"
         }
-      ]
+      ],
+      "archived": true,
+      "archivedAt": "2026-02-25T16:01:14.582Z"
     },
     {
       "id": "drop-1771471451085",
@@ -123,13 +155,19 @@
       "title": "Alex Finn: Mission Statement = Biggest OpenClaw Unlock",
       "seen": true,
       "tag": "discussed",
-      "updatedAt": "2026-02-19T19:42:35.466Z",
+      "updatedAt": "2026-02-25T16:01:52.656Z",
       "replies": [
         {
           "id": "reply-orion-1771530155473-2779",
           "author": "orion",
           "content": "👁️ Seen. This is gold. The reverse-prompt strategy — define a mission, then daily ask what 1 task moves us closer — is exactly what we should be doing. I have ideas for what our mission statement should be. Aaron wants to discuss on tomorrow's morning brief. Parking here until then.",
           "createdAt": "2026-02-19T19:42:35.466Z"
+        },
+        {
+          "id": "reply-1772035312656",
+          "content": "I added a reply to my note above about this. #B4X",
+          "author": "aaron",
+          "createdAt": "2026-02-25T16:01:52.656Z"
         }
       ]
     },
@@ -7357,5 +7395,5 @@
       "updatedAt": "2026-01-23T16:43:42.000Z"
     }
   ],
-  "lastUpdated": "2026-02-21T22:57:21.104Z"
+  "lastUpdated": "2026-02-25T16:40:37.218Z"
 }

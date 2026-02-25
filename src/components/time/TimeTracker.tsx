@@ -480,14 +480,271 @@ function QuickStartModal({
   );
 }
 
+// ─── Entry Form Modal (Create Manual Entry + Edit Entry) ────────
+
+function EntryFormModal({
+  mode,
+  entry,
+  clients,
+  onSave,
+  onClose,
+}: {
+  mode: 'create' | 'edit';
+  entry?: TimeEntry;
+  clients: Client[];
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const toLocalDate = (iso?: string) => {
+    if (!iso) return new Date().toLocaleDateString('en-CA');
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-CA');
+  };
+  const toLocalTime = (iso?: string) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const [clientId, setClientId] = useState(entry?.clientId || (clients[0]?.id ?? ''));
+  const [description, setDescription] = useState(entry?.description || '');
+  const [date, setDate] = useState(toLocalDate(entry?.startTime));
+  const [startTime, setStartTime] = useState(toLocalTime(entry?.startTime));
+  const [endTime, setEndTime] = useState(toLocalTime(entry?.endTime));
+  const [tags, setTags] = useState((entry?.tags ?? []).join(', '));
+  const [billable, setBillable] = useState(entry?.billable ?? true);
+  const [rate, setRate] = useState(String(entry?.rate || clients.find(c => c.id === clientId)?.hourlyRate || ''));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const selectedClient = clients.find(c => c.id === clientId);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clientId || !description.trim() || !startTime) {
+      setError('Client, description, and start time are required.');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+
+    const startISO = new Date(`${date}T${startTime}:00`).toISOString();
+    const endISO = endTime ? new Date(`${date}T${endTime}:00`).toISOString() : undefined;
+    const duration = (startISO && endISO)
+      ? Math.round((new Date(endISO).getTime() - new Date(startISO).getTime()) / (1000 * 60))
+      : undefined;
+
+    const payload = {
+      ...(mode === 'edit' && entry ? { id: entry.id } : {}),
+      clientId,
+      clientName: selectedClient?.name || clientId,
+      description: description.trim(),
+      startTime: startISO,
+      endTime: endISO,
+      duration,
+      tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      billable,
+      rate: rate ? parseFloat(rate) : undefined,
+      isRunning: false,
+    };
+
+    try {
+      const res = await fetch('/api/time-entries', {
+        method: mode === 'edit' ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      onSave();
+      onClose();
+    } catch {
+      setError('Failed to save entry. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '8px 12px',
+    background: color.bg.surface,
+    border: `1px solid ${color.glass.border}`,
+    borderRadius: radius.sm,
+    color: color.text.primary,
+    fontSize: typography.fontSize.body,
+    fontFamily: 'inherit',
+    outline: 'none',
+    boxSizing: 'border-box',
+  };
+
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.6)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 2000,
+        backdropFilter: 'blur(4px)',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: color.bg.base,
+          border: `1.5px solid ${color.glass.border}`,
+          borderRadius: radius['2xl'],
+          padding: '24px',
+          width: '460px',
+          maxWidth: '92vw',
+          maxHeight: '90vh',
+          overflowY: 'auto',
+        }}
+      >
+        <h3 style={{ margin: '0 0 16px 0', fontSize: typography.fontSize.pageTitle, fontWeight: typography.fontWeight.semibold, color: color.text.primary }}>
+          {mode === 'edit' ? '✏️ Edit Entry' : '+ Log Time'}
+        </h3>
+
+        <form onSubmit={handleSubmit}>
+          {/* Client */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, marginBottom: '4px', display: 'block' }}>Client *</label>
+            <select
+              style={{ ...inputStyle, cursor: 'pointer' }}
+              value={clientId}
+              onChange={(e) => {
+                setClientId(e.target.value);
+                const c = clients.find(cl => cl.id === e.target.value);
+                if (c?.hourlyRate && !rate) setRate(String(c.hourlyRate));
+              }}
+              required
+            >
+              {clients.map(c => (
+                <option key={c.id} value={c.id} style={{ background: color.bg.base }}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Description */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, marginBottom: '4px', display: 'block' }}>Description *</label>
+            <input
+              style={inputStyle}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What did you work on?"
+              autoFocus={mode === 'create'}
+              required
+            />
+          </div>
+
+          {/* Date */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, marginBottom: '4px', display: 'block' }}>Date *</label>
+            <input
+              type="date"
+              style={inputStyle}
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+          </div>
+
+          {/* Start + End Time */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+            <div>
+              <label style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, marginBottom: '4px', display: 'block' }}>Start Time *</label>
+              <input
+                type="time"
+                style={inputStyle}
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, marginBottom: '4px', display: 'block' }}>End Time</label>
+              <input
+                type="time"
+                style={inputStyle}
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Duration preview */}
+          {startTime && endTime && (
+            <div style={{ fontSize: typography.fontSize.caption, color: color.ember.flame, marginBottom: '12px' }}>
+              ⏱ {(() => {
+                const mins = Math.round((new Date(`${date}T${endTime}:00`).getTime() - new Date(`${date}T${startTime}:00`).getTime()) / 60000);
+                if (mins <= 0) return 'Check times';
+                return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+              })()}
+            </div>
+          )}
+
+          {/* Tags + Rate */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '12px', marginBottom: '12px' }}>
+            <div>
+              <label style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, marginBottom: '4px', display: 'block' }}>Tags</label>
+              <input
+                style={inputStyle}
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="make, api, build"
+              />
+            </div>
+            <div>
+              <label style={{ fontSize: typography.fontSize.caption, color: color.text.secondary, marginBottom: '4px', display: 'block' }}>Rate $/hr</label>
+              <input
+                type="number"
+                style={{ ...inputStyle, width: '80px' }}
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Billable */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <input type="checkbox" checked={billable} onChange={(e) => setBillable(e.target.checked)} style={{ accentColor: color.ember.DEFAULT }} />
+            <span style={{ fontSize: typography.fontSize.caption, color: color.text.secondary }}>Billable</span>
+          </div>
+
+          {error && (
+            <div style={{ fontSize: typography.fontSize.caption, color: color.status.error, marginBottom: '12px' }}>{error}</div>
+          )}
+
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ padding: '8px 18px', background: 'none', border: `1px solid ${color.glass.border}`, borderRadius: radius.md, color: color.text.secondary, cursor: 'pointer', fontSize: typography.fontSize.body }}
+            >
+              Cancel
+            </button>
+            <EmberButton type="submit" disabled={saving}>
+              {saving ? 'Saving...' : mode === 'edit' ? '✓ Save Changes' : '+ Log Entry'}
+            </EmberButton>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Time Entry Row ─────────────────────────────────────────────
 
 function TimeEntryRow({
   entry,
+  onEdit,
   onDelete,
 }: {
   entry: TimeEntry;
   onUpdate: (id: string, updates: Partial<TimeEntry>) => void;
+  onEdit: (entry: TimeEntry) => void;
   onDelete: (id: string) => void;
 }) {
   const calcValue = (): number => {
@@ -527,9 +784,9 @@ function TimeEntryRow({
         }}>
           {entry.description}
         </div>
-        {entry.tags.length > 0 && (
+        {(entry.tags?.length ?? 0) > 0 && (
           <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
-            {entry.tags.map(tag => (
+            {(entry.tags ?? []).map(tag => (
               <span key={tag} style={{
                 fontSize: typography.fontSize.metadata,
                 color: color.text.dim,
@@ -566,21 +823,26 @@ function TimeEntryRow({
         {value > 0 ? formatMoney(value) : '—'}
       </div>
 
-      <button
-        onClick={() => onDelete(entry.id)}
-        style={{
-          background: 'none',
-          border: 'none',
-          color: color.text.dim,
-          cursor: 'pointer',
-          fontSize: typography.fontSize.metadata,
-          padding: '4px',
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = color.status.error; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = color.text.dim; }}
-      >
-        🗑️
-      </button>
+      <div style={{ display: 'flex', gap: '4px' }}>
+        <button
+          onClick={() => onEdit(entry)}
+          style={{ background: 'none', border: 'none', color: color.text.dim, cursor: 'pointer', fontSize: typography.fontSize.metadata, padding: '4px' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = color.ember.flame; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = color.text.dim; }}
+          title="Edit entry"
+        >
+          ✏️
+        </button>
+        <button
+          onClick={() => onDelete(entry.id)}
+          style={{ background: 'none', border: 'none', color: color.text.dim, cursor: 'pointer', fontSize: typography.fontSize.metadata, padding: '4px' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = color.status.error; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = color.text.dim; }}
+          title="Delete entry"
+        >
+          🗑️
+        </button>
+      </div>
     </div>
   );
 }
@@ -592,6 +854,8 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [quickStartClient, setQuickStartClient] = useState<Client | null>(null);
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeClients = clients.filter(c => c.status === 'active');
@@ -812,7 +1076,7 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
 
       {/* Recent Time Entries */}
       <GlassCard>
-        <div style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <h3 style={{
             margin: 0,
             color: color.text.primary,
@@ -821,6 +1085,24 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
           }}>
             Recent Entries
           </h3>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              padding: '6px 14px',
+              background: 'rgba(255,107,53,0.15)',
+              border: `1px solid ${color.ember.DEFAULT}`,
+              borderRadius: radius.md,
+              color: color.ember.flame,
+              cursor: 'pointer',
+              fontSize: typography.fontSize.caption,
+              fontWeight: typography.fontWeight.medium,
+              fontFamily: 'inherit',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,107,53,0.25)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,107,53,0.15)'; }}
+          >
+            + Log Time
+          </button>
         </div>
 
         {recentEntries.length === 0 ? (
@@ -834,6 +1116,7 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
                 key={entry.id}
                 entry={entry}
                 onUpdate={handleUpdateEntry}
+                onEdit={(e) => setEditingEntry(e)}
                 onDelete={handleDeleteEntry}
               />
             ))}
@@ -847,6 +1130,27 @@ export function TimeTracker({ clients }: TimeTrackerProps): React.ReactElement {
           client={quickStartClient}
           onStart={handleStartTimer}
           onClose={() => setQuickStartClient(null)}
+        />
+      )}
+
+      {/* Edit Entry Modal */}
+      {editingEntry && (
+        <EntryFormModal
+          mode="edit"
+          entry={editingEntry}
+          clients={clients}
+          onSave={fetchTimeEntries}
+          onClose={() => setEditingEntry(null)}
+        />
+      )}
+
+      {/* Manual Create Entry Modal */}
+      {showCreateModal && (
+        <EntryFormModal
+          mode="create"
+          clients={clients}
+          onSave={fetchTimeEntries}
+          onClose={() => setShowCreateModal(false)}
         />
       )}
     </div>
