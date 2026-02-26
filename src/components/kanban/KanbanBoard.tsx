@@ -5,6 +5,7 @@ import type { KanbanData, KanbanCard } from '@/lib/types';
 import { KanbanColumn } from './KanbanColumn';
 import { CardModal } from './CardModal';
 import { ListView } from './ListView';
+import { GlassSelect } from '@/components/ui';
 
 interface ModalState {
   isOpen: boolean;
@@ -272,23 +273,18 @@ export function KanbanBoard(): React.ReactElement {
             ))}
           </div>
 
-          {/* Client Filter */}
+          {/* Client Filter Dropdown */}
           {allClients.length > 0 && (
-            <div className="flex items-center gap-1 bg-surface-raised/60 rounded-lg p-1">
-              {(['all', ...allClients] as const).map((client) => (
-                <button
-                  key={client}
-                  onClick={() => setClientFilter(client)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                    clientFilter === client
-                      ? 'bg-accent text-white'
-                      : 'text-text-muted hover:text-foreground hover:bg-surface-raised'
-                  }`}
-                >
-                  {client === 'all' ? 'All Clients' : client}
-                </button>
-              ))}
-            </div>
+            <GlassSelect
+              size="sm"
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              options={[
+                { value: 'all', label: `All Clients (${allClients.length})` },
+                ...allClients.map((c) => ({ value: c, label: c })),
+              ]}
+              style={{ minWidth: '160px', maxWidth: '200px' }}
+            />
           )}
 
           {/* Compact Toggle */}
