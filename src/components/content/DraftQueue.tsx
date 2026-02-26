@@ -187,7 +187,7 @@ export function DraftQueue({ drafts, pillars, onStatusChange, onDraftUpdate, onD
                 border: `1px solid ${isExpanded ? color.glass.borderHover : color.glass.border}`,
                 cursor: 'pointer',
                 transition: `all ${animation.duration.normal} ${animation.easing.default}`,
-                overflow: 'hidden',
+                overflow: statusDropdownId === draft.id ? 'visible' : 'hidden',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = color.glass.borderHover;
