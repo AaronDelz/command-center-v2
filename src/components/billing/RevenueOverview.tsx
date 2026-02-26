@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { color, typography, radius } from '@/styles/tokens';
 import type { BillingPeriod } from '@/lib/types';
 
@@ -12,6 +13,7 @@ interface RevenueOverviewProps {
 }
 
 export function RevenueOverview({ allPeriods, viewMonth, viewYear }: RevenueOverviewProps): React.ReactElement {
+  const isMobile = useIsMobile();
   const stats = useMemo(() => {
     const thisMonth = allPeriods
       .filter(p => p.month === viewMonth && p.year === viewYear)
@@ -46,7 +48,7 @@ export function RevenueOverview({ allPeriods, viewMonth, viewYear }: RevenueOver
   ];
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
       {cards.map((card) => (
         <GlassCard key={card.label} padding="sm" hover={false}>
           <div style={{ textAlign: 'center', padding: '8px 4px' }}>

@@ -7,6 +7,8 @@ import { RevenueOverview } from '@/components/billing/RevenueOverview';
 import { LedgerBillingTable } from '@/components/billing/BillingTable';
 import { RevenueChart } from '@/components/billing/RevenueChart';
 import { ClientBreakdown } from '@/components/billing/ClientBreakdown';
+import { TimeEntriesSection } from '@/components/billing/TimeEntriesSection';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { color } from '@/styles/tokens';
 import type { BillingPeriod, Client, BillingData, ClientsData } from '@/lib/types';
 
@@ -15,6 +17,7 @@ export default function BillingPage(): React.ReactElement {
   const [monthPeriods, setMonthPeriods] = useState<BillingPeriod[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const isMobile = useIsMobile();
 
   const now = new Date();
   const [viewMonth, setViewMonth] = useState(now.getMonth() + 1);
@@ -89,10 +92,20 @@ export default function BillingPage(): React.ReactElement {
         onRefresh={fetchAll}
       />
 
-      {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '16px', marginTop: '24px' }}>
+      {/* Charts row — stack on mobile */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr',
+        gap: '16px',
+        marginTop: '24px',
+      }}>
         <RevenueChart allPeriods={allPeriods} viewMonth={viewMonth} viewYear={viewYear} />
         <ClientBreakdown periods={monthPeriods} clients={clients} />
+      </div>
+
+      {/* Time Entries linked to this billing month */}
+      <div style={{ marginTop: '24px' }}>
+        <TimeEntriesSection viewMonth={viewMonth} viewYear={viewYear} />
       </div>
     </div>
   );

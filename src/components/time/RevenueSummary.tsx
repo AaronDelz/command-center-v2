@@ -106,7 +106,8 @@ export function RevenueSummary({ entries }: RevenueSummaryProps): React.ReactEle
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+    <div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
       {cards.map((card) => (
         <GlassCard key={card.label} padding="sm">
           <div style={{ textAlign: 'center', padding: '4px 0' }}>
@@ -147,6 +148,17 @@ export function RevenueSummary({ entries }: RevenueSummaryProps): React.ReactEle
           </div>
         </GlassCard>
       ))}
+    </div>
+    <div style={{ textAlign: 'right', marginBottom: '12px' }}>
+      <a href="/billing" style={{
+        fontSize: typography.fontSize.caption,
+        color: color.ember.flame,
+        textDecoration: 'none',
+        fontWeight: typography.fontWeight.medium,
+      }}>
+        View full billing →
+      </a>
+    </div>
     </div>
   );
 }
