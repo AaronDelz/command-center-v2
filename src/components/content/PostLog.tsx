@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { color, typography, radius, animation } from '@/styles/tokens';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassSelect } from '@/components/ui/GlassSelect';
 import { SectionHeading } from '@/components/ui/SectionHeading';
 
 interface PostMetrics {
@@ -45,19 +46,83 @@ const PLATFORM_DISPLAY: Record<string, { icon: string; color: string }> = {
 
 export function PostLog({ posts, pillars }: PostLogProps): React.ReactElement {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const sorted = [...posts].sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  const [monthFilter, setMonthFilter] = useState('all');
+  const [pillarFilter, setPillarFilter] = useState('all');
+
+  // Build month options from post dates
+  const monthOptions = useMemo(() => {
+    const months = new Map<string, string>();
+    posts.forEach(p => {
+      const d = new Date(p.publishedAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      months.set(key, label);
+    });
+    // Sort descending
+    return Array.from(months.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([value, label]) => ({ value, label }));
+  }, [posts]);
+
+  // Filter and sort
+  const filtered = useMemo(() => {
+    let result = [...posts];
+    if (monthFilter !== 'all') {
+      result = result.filter(p => {
+        const d = new Date(p.publishedAt);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return key === monthFilter;
+      });
+    }
+    if (pillarFilter !== 'all') {
+      result = result.filter(p => p.pillar === pillarFilter);
+    }
+    return result.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  }, [posts, monthFilter, pillarFilter]);
 
   return (
     <GlassCard padding="md">
-      <SectionHeading title="Recent Posts" icon="📰" badge={posts.length} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+        <SectionHeading title="Post History" icon="📰" badge={filtered.length} />
+
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Pillar filter buttons */}
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <FilterPill
+              label="All"
+              active={pillarFilter === 'all'}
+              onClick={() => setPillarFilter('all')}
+            />
+            {Object.entries(pillars).map(([key, p]) => (
+              <FilterPill
+                key={key}
+                label={p.label}
+                active={pillarFilter === key}
+                color={p.color}
+                onClick={() => setPillarFilter(pillarFilter === key ? 'all' : key)}
+              />
+            ))}
+          </div>
+
+          {/* Month dropdown */}
+          <GlassSelect
+            size="sm"
+            value={monthFilter}
+            onChange={(e) => setMonthFilter(e.target.value)}
+            options={[{ value: 'all', label: 'All Months' }, ...monthOptions]}
+            style={{ minWidth: '150px' }}
+          />
+        </div>
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {sorted.map((post) => {
+        {filtered.map((post) => {
           const pillarConf = pillars[post.pillar];
           const isExpanded = expandedId === post.id;
           const date = new Date(post.publishedAt);
           const totalViews = Object.values(post.metrics).reduce((s, m) => s + (m.views || 0), 0);
           const totalLikes = Object.values(post.metrics).reduce((s, m) => s + (m.likes || 0), 0);
+          const totalReplies = Object.values(post.metrics).reduce((s, m) => s + (m.replies || 0) + (m.comments || 0), 0);
 
           return (
             <div
@@ -66,8 +131,8 @@ export function PostLog({ posts, pillars }: PostLogProps): React.ReactElement {
               style={{
                 padding: '12px 16px',
                 borderRadius: radius.lg,
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: `1px solid ${color.glass.border}`,
+                background: isExpanded ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.02)',
+                border: `1px solid ${isExpanded ? color.glass.borderHover : color.glass.border}`,
                 cursor: 'pointer',
                 transition: `all ${animation.duration.normal} ${animation.easing.default}`,
               }}
@@ -75,7 +140,7 @@ export function PostLog({ posts, pillars }: PostLogProps): React.ReactElement {
                 e.currentTarget.style.borderColor = color.glass.borderHover;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = color.glass.border;
+                if (!isExpanded) e.currentTarget.style.borderColor = color.glass.border;
               }}
             >
               {/* Header row */}
@@ -110,7 +175,7 @@ export function PostLog({ posts, pillars }: PostLogProps): React.ReactElement {
                       marginTop: '2px',
                     }}
                   >
-                    {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {pillarConf?.label || post.pillar}
+                    {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {pillarConf?.label || post.pillar} · {post.type}
                   </div>
                 </div>
 
@@ -143,18 +208,9 @@ export function PostLog({ posts, pillars }: PostLogProps): React.ReactElement {
 
                 {/* Metrics summary */}
                 <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: typography.fontSize.caption, fontWeight: typography.fontWeight.medium, color: color.text.primary }}>
-                      {totalViews > 0 ? totalViews.toLocaleString() : '—'}
-                    </div>
-                    <div style={{ fontSize: '9px', color: color.text.dim }}>views</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: typography.fontSize.caption, fontWeight: typography.fontWeight.medium, color: color.text.primary }}>
-                      {totalLikes > 0 ? totalLikes.toLocaleString() : '—'}
-                    </div>
-                    <div style={{ fontSize: '9px', color: color.text.dim }}>likes</div>
-                  </div>
+                  <MetricCell value={totalViews} label="views" />
+                  <MetricCell value={totalLikes} label="likes" />
+                  <MetricCell value={totalReplies} label="replies" />
                 </div>
               </div>
 
@@ -180,31 +236,36 @@ export function PostLog({ posts, pillars }: PostLogProps): React.ReactElement {
 
                   {/* Per-platform metrics */}
                   {Object.keys(post.metrics).length > 0 && (
-                    <div style={{ display: 'flex', gap: '16px', marginTop: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '12px', flexWrap: 'wrap' }}>
                       {Object.entries(post.metrics).map(([platform, m]) => {
                         const pd = PLATFORM_DISPLAY[platform];
+                        const hasData = (m.views || 0) > 0 || (m.likes || 0) > 0;
                         return (
                           <div
                             key={platform}
                             style={{
-                              padding: '6px 10px',
+                              padding: '8px 12px',
                               borderRadius: radius.md,
                               background: 'rgba(255, 255, 255, 0.03)',
+                              border: `1px solid ${color.glass.border}`,
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '8px',
+                              gap: '10px',
                               fontSize: typography.fontSize.metadata,
                               color: color.text.secondary,
                             }}
                           >
-                            <span style={{ color: pd?.color, fontWeight: typography.fontWeight.bold, fontSize: '11px' }}>
+                            <span style={{ color: pd?.color, fontWeight: typography.fontWeight.bold, fontSize: '12px' }}>
                               {pd?.icon || platform}
                             </span>
                             <span>{m.views || 0} views</span>
-                            <span>·</span>
+                            <span style={{ color: color.text.dim }}>·</span>
                             <span>{m.likes || 0} ❤️</span>
-                            {m.replies != null && <><span>·</span><span>{m.replies} 💬</span></>}
-                            {m.comments != null && <><span>·</span><span>{m.comments} 💬</span></>}
+                            {m.replies != null && <><span style={{ color: color.text.dim }}>·</span><span>{m.replies} 💬</span></>}
+                            {m.comments != null && <><span style={{ color: color.text.dim }}>·</span><span>{m.comments} 💬</span></>}
+                            {m.reposts != null && m.reposts > 0 && <><span style={{ color: color.text.dim }}>·</span><span>{m.reposts} 🔄</span></>}
+                            {m.shares != null && m.shares > 0 && <><span style={{ color: color.text.dim }}>·</span><span>{m.shares} 📤</span></>}
+                            {!hasData && <span style={{ color: color.text.dim, fontStyle: 'italic' }}>No data yet</span>}
                           </div>
                         );
                       })}
@@ -216,12 +277,45 @@ export function PostLog({ posts, pillars }: PostLogProps): React.ReactElement {
           );
         })}
 
-        {posts.length === 0 && (
+        {filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '20px', color: color.text.dim, fontSize: typography.fontSize.body }}>
-            No posts yet. Time to start creating!
+            {posts.length === 0 ? 'No posts yet. Time to start creating!' : 'No posts match the current filters.'}
           </div>
         )}
       </div>
     </GlassCard>
+  );
+}
+
+function MetricCell({ value, label }: { value: number; label: string }) {
+  return (
+    <div style={{ textAlign: 'right' }}>
+      <div style={{ fontSize: typography.fontSize.caption, fontWeight: typography.fontWeight.medium, color: color.text.primary }}>
+        {value > 0 ? value.toLocaleString() : '—'}
+      </div>
+      <div style={{ fontSize: '9px', color: color.text.dim }}>{label}</div>
+    </div>
+  );
+}
+
+function FilterPill({ label, active, color: pillColor, onClick }: { label: string; active: boolean; color?: string; onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        padding: '4px 10px',
+        borderRadius: radius.full,
+        fontSize: typography.fontSize.metadata,
+        fontWeight: active ? typography.fontWeight.medium : typography.fontWeight.regular,
+        cursor: 'pointer',
+        border: `1px solid ${active ? (pillColor || color.ember.DEFAULT) + '60' : color.glass.border}`,
+        background: active ? (pillColor || color.ember.DEFAULT) + '20' : 'transparent',
+        color: active ? (pillColor || color.ember.flame) : color.text.dim,
+        transition: `all ${animation.duration.fast}`,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {label}
+    </div>
   );
 }

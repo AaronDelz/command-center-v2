@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { getDynamicSubtitle } from '@/lib/subtitles';
 import { StreakCounter } from '@/components/content/StreakCounter';
@@ -72,18 +72,40 @@ export default function ContentPage(): React.ReactElement {
     fetchData();
   }, [fetchData]);
 
-  const handleStatusChange = async (draftId: string, newStatus: Draft['status']) => {
+  const apiCall = useCallback(async (body: Record<string, unknown>) => {
     try {
       await fetch('/api/content', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'updateDraft', draftId, draft: { status: newStatus } }),
+        body: JSON.stringify(body),
       });
       fetchData();
     } catch (err) {
-      console.error('Failed to update draft status:', err);
+      console.error('API call failed:', err);
     }
-  };
+  }, [fetchData]);
+
+  const handleStatusChange = useCallback((draftId: string, newStatus: Draft['status']) => {
+    apiCall({ action: 'updateDraft', draftId, draft: { status: newStatus } });
+  }, [apiCall]);
+
+  const handleDraftUpdate = useCallback((draftId: string, updates: Partial<Draft>) => {
+    apiCall({ action: 'updateDraft', draftId, draft: updates });
+  }, [apiCall]);
+
+  const handleDraftDelete = useCallback((draftId: string) => {
+    apiCall({ action: 'deleteDraft', draftId });
+  }, [apiCall]);
+
+  const handleDraftCreate = useCallback((draft: Partial<Draft>) => {
+    apiCall({ action: 'addDraft', draft });
+  }, [apiCall]);
+
+  // Extract all post dates for heatmap
+  const postDates = useMemo(() => {
+    if (!data) return [];
+    return data.posts.map(p => p.publishedAt);
+  }, [data]);
 
   if (loading || !data) {
     return (
@@ -108,6 +130,7 @@ export default function ContentPage(): React.ReactElement {
         lastPostDate={data.streak.lastPostDate}
         postsThisMonth={data.stats.postsThisMonth}
         totalImpressions={data.stats.totalImpressions}
+        postDates={postDates}
       />
 
       {/* Row 2: Week Calendar */}
@@ -123,6 +146,9 @@ export default function ContentPage(): React.ReactElement {
         drafts={data.drafts}
         pillars={data.pillars}
         onStatusChange={handleStatusChange}
+        onDraftUpdate={handleDraftUpdate}
+        onDraftDelete={handleDraftDelete}
+        onDraftCreate={handleDraftCreate}
       />
 
       {/* Row 4: Platform Stats + Content Mix */}
@@ -133,7 +159,7 @@ export default function ContentPage(): React.ReactElement {
         totalPosts={data.stats.totalPosts}
       />
 
-      {/* Row 5: Post Log */}
+      {/* Row 5: Post History */}
       <PostLog posts={data.posts} pillars={data.pillars} />
     </div>
   );
