@@ -17,7 +17,7 @@ function getTimeSlot(): 'lateNight' | 'earlyMorning' | 'morning' | 'afternoon' |
   return 'night';
 }
 
-type PageId = 'deck' | 'kanban' | 'anvil' | 'clients' | 'time' | 'calendar' | 'vault' | 'content' | 'helm' | 'settings';
+type PageId = 'deck' | 'kanban' | 'anvil' | 'clients' | 'time' | 'calendar' | 'vault' | 'content' | 'helm' | 'settings' | 'billing';
 
 const subtitles: Record<PageId, Record<ReturnType<typeof getTimeSlot>, string[]>> = {
   deck: {
@@ -91,6 +91,14 @@ const subtitles: Record<PageId, Record<ReturnType<typeof getTimeSlot>, string[]>
     afternoon: ['Mid-day course correction? 🧭', 'Are we on track? 📊'],
     evening: ['End-of-day trajectory check 🌆', 'How far did we move today? 📈'],
     night: ['Recalibrating for tomorrow 🦉', 'The long game plays out here 🧭'],
+  },
+  billing: {
+    lateNight: ['Midnight accounting — the books don\'t balance themselves 💰', 'Show me the money 🌙'],
+    earlyMorning: ['Early bird invoicing ☀️', 'Revenue doesn\'t sleep 💰'],
+    morning: ['Every dollar tracked, every invoice sent 💰', 'The books are open — let\'s get paid 🔥'],
+    afternoon: ['Afternoon billing check — who\'s paid up? 📊', 'Chase that revenue 💪'],
+    evening: ['Evening reconciliation 🌆', 'Close out the books 💰'],
+    night: ['Late-night ledger work 🦉', 'Revenue review before bed 💰'],
   },
   settings: {
     lateNight: ['Late-night system tuning 🔧', 'Maintenance mode 🌙'],

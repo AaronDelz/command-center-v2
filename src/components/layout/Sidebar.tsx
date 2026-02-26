@@ -32,6 +32,7 @@ const navGroups: NavGroup[] = [
     items: [
       { label: 'Client Command', href: '/clients', icon: '👥' },
       { label: 'Time Forge', href: '/time', icon: '⏱️' },
+      { label: 'The Ledger', href: '/billing', icon: '💰' },
       { label: 'Calendar', href: '/calendar', icon: '📅' },
     ],
   },

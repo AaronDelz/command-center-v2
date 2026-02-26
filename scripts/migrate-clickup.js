@@ -24,7 +24,7 @@ const { randomUUID } = require('crypto');
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(PROJECT_ROOT, 'data');
 const BACKUP_DIR = path.join(DATA_DIR, 'backups');
-const INBOX_DIR = path.resolve(process.env.HOME, 'Documents/inbox/ClickUp');
+const INBOX_DIR = path.resolve(process.env.HOME, 'Documents/inbox/to-delete/ClickUp');
 
 const CSV_PATHS = {
   income: path.join(INBOX_DIR, '1. Time Tracking - Income', 'Time_Tracking_Income.csv'),
@@ -576,30 +576,28 @@ function main() {
   const billingPeriods = migrateIncome(report);
 
   if (billingPeriods) {
-    // Read existing time-entries or create fresh time.json
-    const timeEntriesPath = path.join(DATA_DIR, 'time-entries.json');
-    const existingTime = fs.existsSync(timeEntriesPath)
-      ? JSON.parse(fs.readFileSync(timeEntriesPath, 'utf-8'))
-      : { entries: [], lastUpdated: '' };
+    // Read existing billing.json
+    const billingPath = path.join(DATA_DIR, 'billing.json');
+    const existingBilling = fs.existsSync(billingPath)
+      ? JSON.parse(fs.readFileSync(billingPath, 'utf-8'))
+      : { billingPeriods: [], lastUpdated: '' };
 
-    // Build time.json with billing periods + existing entries
-    const timeData = {
-      entries: existingTime.entries || [],
-      billingPeriods,
-      activeTimer: existingTime.activeTimer || { clientId: '', startTime: '', description: '', isRunning: false },
-      settings: {
-        defaultView: 'monthly',
-        showCompletedMonths: false,
-        autoCreateNextMonth: true,
-      },
+    // Merge: skip duplicates (same clientId + month + year)
+    const existingKeys = new Set(
+      (existingBilling.billingPeriods || []).map(bp => `${bp.clientId}-${bp.month}-${bp.year}`)
+    );
+    const newPeriods = billingPeriods.filter(bp => !existingKeys.has(`${bp.clientId}-${bp.month}-${bp.year}`));
+
+    const billingData = {
+      billingPeriods: [...(existingBilling.billingPeriods || []), ...newPeriods],
       lastUpdated: new Date().toISOString(),
     };
 
     if (!DRY_RUN) {
-      fs.writeFileSync(path.join(DATA_DIR, 'time.json'), JSON.stringify(timeData, null, 2));
-      report.written.push('time.json');
+      fs.writeFileSync(billingPath, JSON.stringify(billingData, null, 2));
+      report.written.push('billing.json');
     }
-    console.log(`  ✅ ${billingPeriods.length} billing periods`);
+    console.log(`  ✅ ${newPeriods.length} new billing periods (${existingBilling.billingPeriods?.length || 0} existing kept)`);
   }
 
   // 2. Clients merge
